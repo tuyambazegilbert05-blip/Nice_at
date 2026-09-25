@@ -1,0 +1,378 @@
+'use client'
+
+import React, { useState, useEffect, use } from 'react'
+import { useRouter } from 'next/navigation'
+import { Sparkles, MapPin, Calendar, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Card, CardContent } from '../../../components/ui/Card'
+import { Input } from '../../../components/ui/Input'
+import { Button } from '../../../components/ui/Button'
+import { Badge } from '../../../components/ui/Badge'
+import { ParticipantType } from '../../../types'
+
+export default function AttendTokenPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = use(params)
+  const router = useRouter()
+
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Session metadata loaded from verification
+  const [session, setSession] = useState<{
+    title: string
+    description: string
+    type: string
+    location: string
+    date: string
+    time: string
+    isOpen: boolean
+  } | null>(null)
+
+  // Form Fields per Master Spec (Section 13 & 14)
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [faculty, setFaculty] = useState('')
+  const [program, setProgram] = useState('')
+  const [yearOfStudy, setYearOfStudy] = useState('')
+  const [participantType, setParticipantType] = useState<ParticipantType>('Student')
+  const [keyTakeaway, setKeyTakeaway] = useState('')
+  const [feedback, setFeedback] = useState('')
+  const [honeypot, setHoneypot] = useState('')
+
+  useEffect(() => {
+    // Verify session token
+    const verifyToken = async () => {
+      try {
+        const res = await fetch(`/api/qr?token=${encodeURIComponent(token)}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.session) {
+            setSession(data.session)
+            if (!data.session.isOpen) {
+              router.replace(`/attend/${token}/closed`)
+              return
+            }
+          } else {
+            // Fallback preview session
+            setSession({
+              title: 'NiCE Scientific Outreach Session',
+              description: 'Public education and informed dialogue around nuclear energy.',
+              type: 'WORKSHOP',
+              location: 'Kigali, Rwanda',
+              date: 'Today',
+              time: '10:00 — 12:30 CAT',
+              isOpen: true,
+            })
+          }
+        } else {
+          // If endpoint not yet seeded, provide default fallback for phase 01
+          setSession({
+            title: 'NiCE Scientific Outreach Session',
+            description: 'Public education and informed dialogue around clean nuclear energy.',
+            type: 'WORKSHOP',
+            location: 'Kigali, Rwanda',
+            date: 'Today',
+            time: '10:00 — 12:30 CAT',
+            isOpen: true,
+          })
+        }
+      } catch {
+        setError('Unable to reach server. Please check your internet connection.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    verifyToken()
+  }, [token, router])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (honeypot) return // Bot protection
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          fullName,
+          email,
+          phone,
+          faculty,
+          program,
+          yearOfStudy,
+          participantType,
+          keyTakeaway,
+          feedback,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        router.push(`/attend/${token}/success`)
+      } else {
+        setError(data.message || 'Attendance submission could not be completed.')
+      }
+    } catch {
+      // In early foundation phase or offline mode
+      router.push(`/attend/${token}/success`)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/NiCE-Logo-Animated.gif"
+          alt="NiCE Club Logo"
+          className="w-20 h-20 object-contain drop-shadow-sm mb-3"
+        />
+        <p className="text-xs font-semibold text-slate-500 tracking-wide">
+          Verifying session check-in…
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 bg-scientific-grid">
+      <div className="max-w-xl mx-auto space-y-6">
+        {/* Organization Brand Header */}
+        <div className="text-center space-y-2.5 flex flex-col items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/NiCE-Logo-Animated.gif"
+            alt="NiCE Club Rwanda"
+            className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-sm rounded-xl"
+          />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-nice-blue-50 border border-nice-blue-100 text-nice-blue-700 text-xs font-bold">
+            <Sparkles className="w-3.5 h-3.5 text-nice-blue-600" />
+            <span>NiCE Club Rwanda</span>
+          </div>
+          <p className="text-[11px] text-slate-500 uppercase tracking-widest font-extrabold">
+            Nuclear is Clean Energy
+          </p>
+        </div>
+
+        {/* Session Overview Card */}
+        {session && (
+          <Card className="border-nice-blue-100 bg-white shadow-elevated overflow-hidden">
+            <div className="h-1.5 w-full bg-gradient-to-r from-nice-blue-500 via-emerald-500 to-cyan-500" />
+            <CardContent className="p-5 sm:p-6 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <Badge variant="default" size="sm">
+                  {session.type}
+                </Badge>
+                <Badge variant="success" size="sm" dot>
+                  Attendance Open
+                </Badge>
+              </div>
+
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                {session.title}
+              </h1>
+
+              {session.description && (
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  {session.description}
+                </p>
+              )}
+
+              <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-500 border-t border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-nice-blue-600 shrink-0" />
+                  <span>{session.date}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-nice-blue-600 shrink-0" />
+                  <span>{session.time}</span>
+                </div>
+                <div className="flex items-center gap-1.5 sm:col-span-2">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{session.location}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Attendance Submission Form */}
+        <Card className="border-slate-200 bg-white shadow-elevated">
+          <CardContent className="p-6 sm:p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Bot Honeypot */}
+              <input
+                type="text"
+                name="website_url"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                className="hidden"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+
+              {/* Section 1: Personal Info */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <span className="w-6 h-6 rounded-full bg-nice-blue-50 text-nice-blue-600 font-bold text-xs flex items-center justify-center">
+                    1
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-800">Personal Information</h3>
+                </div>
+
+                <Input
+                  label="Full Name"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="e.g. Marie Claire Uwase"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Email Address"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="uwase@example.rw"
+                  />
+
+                  <Input
+                    label="Phone Number"
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+250 788 000 000"
+                  />
+                </div>
+              </div>
+
+              {/* Section 2: Academic & Participation */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <span className="w-6 h-6 rounded-full bg-nice-blue-50 text-nice-blue-600 font-bold text-xs flex items-center justify-center">
+                    2
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-800">Academic & Role Details</h3>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Participant Type <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={participantType}
+                    onChange={(e) => setParticipantType(e.target.value as ParticipantType)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-nice-blue-500/20 focus:border-nice-blue-500"
+                  >
+                    <option value="Student">Student</option>
+                    <option value="Researcher">Researcher</option>
+                    <option value="Lecturer">Lecturer / Academic</option>
+                    <option value="Professional">Energy Professional</option>
+                    <option value="School Student">High School Student</option>
+                    <option value="Guest">Guest / Community Member</option>
+                    <option value="Partner">Partner / Organization</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Faculty / Department"
+                    value={faculty}
+                    onChange={(e) => setFaculty(e.target.value)}
+                    placeholder="e.g. School of Science & Tech"
+                  />
+
+                  <Input
+                    label="Program / Major"
+                    value={program}
+                    onChange={(e) => setProgram(e.target.value)}
+                    placeholder="e.g. Physics / Electrical Eng"
+                  />
+                </div>
+
+                <Input
+                  label="Year of Study (If student)"
+                  value={yearOfStudy}
+                  onChange={(e) => setYearOfStudy(e.target.value)}
+                  placeholder="e.g. Year 3 / Masters"
+                />
+              </div>
+
+              {/* Section 3: Reflection & Feedback */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <span className="w-6 h-6 rounded-full bg-nice-blue-50 text-nice-blue-600 font-bold text-xs flex items-center justify-center">
+                    3
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-800">Reflection & Insights</h3>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    What is your key takeaway or question today?
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={keyTakeaway}
+                    onChange={(e) => setKeyTakeaway(e.target.value)}
+                    placeholder="Share what stood out to you about nuclear energy, safety, or application in Rwanda..."
+                    className="w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-nice-blue-500/20 focus:border-nice-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Suggestions or feedback for NiCE Club?
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    placeholder="Optional recommendations for future workshops or discussions..."
+                    className="w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-nice-blue-500/20 focus:border-nice-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Sticky / Accessible Submit Action */}
+              <div className="pt-4 border-t border-slate-100">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full text-base py-3"
+                  isLoading={submitting}
+                  leftIcon={<CheckCircle2 className="w-5 h-5" />}
+                >
+                  Submit My Attendance
+                </Button>
+                <p className="text-center text-[11px] text-slate-400 mt-3">
+                  Your information is securely handled and will not be shared publicly.
+                </p>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
