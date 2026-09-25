@@ -5,8 +5,24 @@ import { StatCard } from '../../../components/ui/StatCard'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
+import { getAllSessions } from '../../../lib/sessions/session-service'
+import { getAllAttendance } from '../../../lib/attendance/check-in-service'
+import { getCurrentUser } from '../../../lib/auth'
+import { hasPermission } from '../../../lib/permissions/rbac'
+import { redirect } from 'next/navigation'
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (!hasPermission(user.role, 'attendance:view')) redirect('/login')
+  const [sessions, attendance] = await Promise.all([getAllSessions(), getAllAttendance()])
+  const thisMonthAttendees = attendance.filter((record) => {
+    const date = new Date(record.submittedAt)
+    const now = new Date()
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
+  }).length
+  const averageAttendance = sessions.length ? Math.round(attendance.length / sessions.length) : 0
+  const recentSessions = sessions.slice(0, 5)
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Welcome Banner */}
@@ -32,25 +48,25 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Sessions"
-          value="0"
+          value={sessions.length.toLocaleString()}
           subtitle="All recorded events"
           icon={<CalendarDays className="w-5 h-5 text-nice-blue-600" />}
         />
         <StatCard
           title="Total Attendees"
-          value="0"
+          value={attendance.length.toLocaleString()}
           subtitle="Verified check-ins"
           icon={<Users className="w-5 h-5 text-nice-blue-600" />}
         />
         <StatCard
           title="This Month"
-          value="0"
+          value={thisMonthAttendees.toLocaleString()}
           subtitle="Current calendar month"
           icon={<CheckCircle className="w-5 h-5 text-emerald-600" />}
         />
         <StatCard
           title="Average Attendance"
-          value="0"
+          value={averageAttendance.toLocaleString()}
           subtitle="Per published session"
           icon={<TrendingUp className="w-5 h-5 text-nice-blue-600" />}
         />
@@ -71,8 +87,7 @@ export default function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent>
-              {/* Clean Empty State */}
-              <div className="py-12 text-center flex flex-col items-center justify-center">
+              {recentSessions.length === 0 ? <div className="py-12 text-center flex flex-col items-center justify-center">
                 <div className="w-12 h-12 rounded-2xl bg-nice-blue-50 border border-nice-blue-100 flex items-center justify-center text-nice-blue-600 mb-3">
                   <CalendarDays className="w-6 h-6" />
                 </div>
@@ -85,7 +100,12 @@ export default function DashboardPage() {
                     Create Your First Session
                   </Button>
                 </Link>
-              </div>
+              </div> : <div className="divide-y divide-slate-100">
+                {recentSessions.map((session) => <Link key={session.id} href={`/sessions/${session.id}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-800">{session.title}</p><p className="mt-1 text-xs text-slate-500">{String(session.date)} · {session.location}</p></div>
+                  <Badge variant={session.status === 'OPEN' ? 'success' : 'neutral'} size="sm">{session.status.replace('_', ' ')}</Badge>
+                </Link>)}
+              </div>}
             </CardContent>
           </Card>
         </div>

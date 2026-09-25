@@ -38,6 +38,7 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
   const [participantType, setParticipantType] = useState<ParticipantType>('Student')
   const [keyTakeaway, setKeyTakeaway] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [emailUpdatesOptIn, setEmailUpdatesOptIn] = useState(false)
   const [honeypot, setHoneypot] = useState('')
 
   useEffect(() => {
@@ -45,40 +46,13 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
     const verifyToken = async () => {
       try {
         const res = await fetch(`/api/qr?token=${encodeURIComponent(token)}`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.session) {
-            setSession(data.session)
-            if (!data.session.isOpen) {
-              router.replace(`/attend/${token}/closed`)
-              return
-            }
-          } else {
-            // Fallback preview session
-            setSession({
-              title: 'NiCE Scientific Outreach Session',
-              description: 'Public education and informed dialogue around nuclear energy.',
-              type: 'WORKSHOP',
-              location: 'Kigali, Rwanda',
-              date: 'Today',
-              time: '10:00 — 12:30 CAT',
-              isOpen: true,
-            })
-          }
-        } else {
-          // If endpoint not yet seeded, provide default fallback for phase 01
-          setSession({
-            title: 'NiCE Scientific Outreach Session',
-            description: 'Public education and informed dialogue around clean nuclear energy.',
-            type: 'WORKSHOP',
-            location: 'Kigali, Rwanda',
-            date: 'Today',
-            time: '10:00 — 12:30 CAT',
-            isOpen: true,
-          })
-        }
+        const data = await res.json()
+        if (!res.ok || !data.session) throw new Error(data.error || 'This attendance link is invalid.')
+        const verifiedSession = { ...data.session, time: `${data.session.startTime} — ${data.session.endTime} CAT` }
+        setSession(verifiedSession)
+        if (!verifiedSession.isOpen) router.replace(`/attend/${token}/closed`)
       } catch {
-        setError('Unable to reach server. Please check your internet connection.')
+        setError('This attendance link is invalid or the server could not be reached.')
       } finally {
         setLoading(false)
       }
@@ -109,6 +83,8 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
           participantType,
           keyTakeaway,
           feedback,
+          emailUpdatesOptIn,
+          honeypot,
         }),
       })
 
@@ -116,11 +92,10 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
       if (res.ok && data.success) {
         router.push(`/attend/${token}/success`)
       } else {
-        setError(data.message || 'Attendance submission could not be completed.')
+        setError(data.error || 'Attendance submission could not be completed.')
       }
     } catch {
-      // In early foundation phase or offline mode
-      router.push(`/attend/${token}/success`)
+      setError('Unable to reach the server. Your attendance was not saved; please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -143,8 +118,22 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 bg-scientific-grid">
-      <div className="max-w-xl mx-auto space-y-6">
+    <div className="relative min-h-screen overflow-hidden bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 bg-scientific-grid">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden p-3 sm:p-5 lg:p-8">
+        <div className="absolute inset-0">
+          <div className="absolute left-[9%] top-[12%] h-14 w-14 rounded-full bg-cover bg-center opacity-12 sm:left-[12%] sm:top-[14%] sm:h-18 sm:w-18 lg:h-20 lg:w-20" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute left-[20%] top-[26%] h-10 w-10 rounded-full bg-cover bg-center opacity-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute left-[32%] top-[8%] h-8 w-8 rounded-full bg-cover bg-center opacity-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute right-[9%] top-[12%] h-14 w-14 rounded-full bg-cover bg-center opacity-12 sm:right-[12%] sm:top-[14%] sm:h-18 sm:w-18 lg:h-20 lg:w-20" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute right-[20%] top-[26%] h-10 w-10 rounded-full bg-cover bg-center opacity-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute right-[32%] top-[8%] h-8 w-8 rounded-full bg-cover bg-center opacity-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute bottom-[12%] left-[12%] h-14 w-14 rounded-full bg-cover bg-center opacity-12 sm:left-[14%] sm:bottom-[14%] sm:h-18 sm:w-18 lg:h-20 lg:w-20" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute bottom-[20%] left-[24%] h-10 w-10 rounded-full bg-cover bg-center opacity-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute bottom-[10%] right-[12%] h-14 w-14 rounded-full bg-cover bg-center opacity-12 sm:right-[14%] sm:bottom-[14%] sm:h-18 sm:w-18 lg:h-20 lg:w-20" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+          <div className="absolute bottom-[20%] right-[24%] h-10 w-10 rounded-full bg-cover bg-center opacity-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16" style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }} />
+        </div>
+      </div>
+      <div className="relative z-10 max-w-xl mx-auto space-y-6">
         {/* Organization Brand Header */}
         <div className="text-center space-y-2.5 flex flex-col items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -262,6 +251,11 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                     placeholder="+250 788 000 000"
                   />
                 </div>
+
+                <label className="flex items-start gap-2 text-xs leading-relaxed text-slate-600">
+                  <input type="checkbox" checked={emailUpdatesOptIn} onChange={(event) => setEmailUpdatesOptIn(event.target.checked)} className="mt-0.5 rounded border-slate-300 text-sky-700 focus:ring-sky-600" />
+                  <span>I agree to receive occasional NiCE Club updates about future clean energy learning events. This is optional and does not affect my attendance registration.</span>
+                </label>
               </div>
 
               {/* Section 2: Academic & Participation */}

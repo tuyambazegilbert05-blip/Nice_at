@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
 import { getAllSessions } from '../../../lib/sessions/session-service'
 import { getAllAttendance } from '../../../lib/attendance/check-in-service'
+import { getCurrentUser } from '../../../lib/auth'
+import { hasPermission } from '../../../lib/permissions/rbac'
 
 export async function GET() {
   try {
-    const sessions = getAllSessions()
-    const attendance = getAllAttendance()
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    if (!hasPermission(user.role, 'attendance:view')) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    const [sessions, attendance] = await Promise.all([getAllSessions(), getAllAttendance()])
 
     const totalSessions = sessions.length
     const totalAttendees = attendance.length

@@ -6,7 +6,10 @@ import { hasPermission } from '../../../lib/permissions/rbac'
 
 export async function GET() {
   try {
-    const sessions = getAllSessions()
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    if (!hasPermission(user.role, 'session:view')) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    const sessions = await getAllSessions()
     return NextResponse.json({
       success: true,
       data: sessions,
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const session = createSession(body, user.id)
+    const session = await createSession(body, user.id)
 
     return NextResponse.json(
       {

@@ -4,9 +4,15 @@ import { Plus } from 'lucide-react'
 import { getAllSessions } from '../../../lib/sessions/session-service'
 import { SessionList } from '../../../components/sessions/SessionList'
 import { Button } from '../../../components/ui/Button'
+import { getCurrentUser } from '../../../lib/auth'
+import { hasPermission } from '../../../lib/permissions/rbac'
+import { redirect } from 'next/navigation'
 
-export default function SessionsPage() {
-  const sessions = getAllSessions()
+export default async function SessionsPage() {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (!hasPermission(user.role, 'session:view')) redirect('/dashboard')
+  const sessions = await getAllSessions()
 
   return (
     <div className="space-y-6">

@@ -3,8 +3,18 @@ import { Download, Search, Filter, UserCheck } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../components/ui/Table'
 import { Button } from '../../../components/ui/Button'
+import { getAllAttendance } from '../../../lib/attendance/check-in-service'
+import { getAllSessions } from '../../../lib/sessions/session-service'
+import { getCurrentUser } from '../../../lib/auth'
+import { hasPermission } from '../../../lib/permissions/rbac'
+import { redirect } from 'next/navigation'
 
-export default function AttendancePage() {
+export default async function AttendancePage() {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (!hasPermission(user.role, 'attendance:view')) redirect('/dashboard')
+  const [records, sessions] = await Promise.all([getAllAttendance(), getAllSessions()])
+  const sessionTitles = new Map(sessions.map((session) => [session.id, session.title]))
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
@@ -64,7 +74,7 @@ export default function AttendancePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
+              {records.length === 0 ? <TableRow>
                 <TableCell colSpan={6} className="text-center py-12 text-slate-400">
                   <div className="flex flex-col items-center justify-center">
                     <UserCheck className="w-8 h-8 text-slate-300 mb-2" />
@@ -74,7 +84,14 @@ export default function AttendancePage() {
                     </p>
                   </div>
                 </TableCell>
-              </TableRow>
+              </TableRow> : records.map((record) => <TableRow key={record.id}>
+                <TableCell><span className="font-medium text-slate-800">{record.fullName}</span></TableCell>
+                <TableCell><span className="block">{record.email}</span><span className="text-xs text-slate-500">{record.phone}</span></TableCell>
+                <TableCell>{sessionTitles.get(record.sessionId) || 'Archived session'}</TableCell>
+                <TableCell>{[record.faculty, record.program, record.yearOfStudy].filter(Boolean).join(' · ') || '—'}</TableCell>
+                <TableCell>{record.participantType}</TableCell>
+                <TableCell>{new Date(record.submittedAt).toLocaleString('en-RW', { timeZone: 'Africa/Kigali' })}</TableCell>
+              </TableRow>)}
             </TableBody>
           </Table>
         </CardContent>

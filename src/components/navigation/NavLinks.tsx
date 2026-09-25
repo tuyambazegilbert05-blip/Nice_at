@@ -11,6 +11,7 @@ export const NAVIGATION_ITEMS = [
   { name: 'Attendance', href: '/attendance' },
   { name: 'Participants', href: '/participants' },
   { name: 'Analytics', href: '/analytics' },
+  { name: 'Communications', href: '/communications' },
   { name: 'Resources', href: '/resources' },
   { name: 'Settings', href: '/settings' },
   { name: 'Account', href: '/account' },

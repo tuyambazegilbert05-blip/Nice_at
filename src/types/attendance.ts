@@ -27,6 +27,7 @@ export interface Attendance {
   customResponses?: Record<string, string | string[] | number | boolean> | null
   metadata?: Record<string, unknown> | null
   submittedAt: Date | string
+  emailUpdatesOptIn?: boolean
 }
 
 export interface AttendanceSubmission {
@@ -40,6 +41,7 @@ export interface AttendanceSubmission {
   participantType: ParticipantType
   keyTakeaway?: string
   feedback?: string
+  emailUpdatesOptIn?: boolean
   customResponses?: Record<string, string | string[] | number | boolean>
   honeypot?: string // Bot prevention field
 }

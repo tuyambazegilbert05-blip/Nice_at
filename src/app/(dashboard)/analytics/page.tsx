@@ -2,8 +2,30 @@ import React from 'react'
 import { BarChart3, TrendingUp, Users, Calendar, Award } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
 import { StatCard } from '../../../components/ui/StatCard'
+import { getAllAttendance } from '../../../lib/attendance/check-in-service'
+import { getAllSessions } from '../../../lib/sessions/session-service'
+import { getCurrentUser } from '../../../lib/auth'
+import { hasPermission } from '../../../lib/permissions/rbac'
+import { redirect } from 'next/navigation'
 
-export default function AnalyticsPage() {
+export default async function AnalyticsPage() {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (!hasPermission(user.role, 'attendance:view')) redirect('/dashboard')
+  const [sessions, attendance] = await Promise.all([getAllSessions(), getAllAttendance()])
+  const participantCounts = attendance.reduce<Record<string, number>>((counts, record) => {
+    counts[record.participantType] = (counts[record.participantType] || 0) + 1
+    return counts
+  }, {})
+  const participantTypes = Object.entries(participantCounts).sort((a, b) => b[1] - a[1])
+  const topSegment = participantTypes[0]?.[0] || '—'
+  const avgAttendance = sessions.length ? Math.round(attendance.length / sessions.length) : 0
+  const monthly = new Map<string, number>()
+  attendance.forEach((record) => {
+    const key = new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric', timeZone: 'Africa/Kigali' }).format(new Date(record.submittedAt))
+    monthly.set(key, (monthly.get(key) || 0) + 1)
+  })
+  const monthlyCounts = [...monthly.entries()].slice(-6)
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3.5 pb-4 border-b border-slate-200">
@@ -27,26 +49,26 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Events"
-          value="0"
+          value={sessions.length.toLocaleString()}
           subtitle="All sessions"
           icon={<Calendar className="w-5 h-5 text-nice-blue-600" />}
         />
         <StatCard
           title="Verified Attendance"
-          value="0"
+          value={attendance.length.toLocaleString()}
           subtitle="Cumulative check-ins"
           icon={<Users className="w-5 h-5 text-nice-blue-600" />}
         />
         <StatCard
           title="Avg Participants"
-          value="0"
+          value={avgAttendance.toLocaleString()}
           subtitle="Per session"
           icon={<TrendingUp className="w-5 h-5 text-nice-blue-600" />}
         />
         <StatCard
           title="Top Segment"
-          value="Students"
-          subtitle="University & Polytechnic"
+          value={topSegment}
+          subtitle={participantTypes[0] ? `${participantTypes[0][1]} check-ins` : 'No check-ins yet'}
           icon={<Award className="w-5 h-5 text-emerald-600" />}
         />
       </div>
@@ -58,13 +80,12 @@ export default function AnalyticsPage() {
             <CardDescription>Attendee breakdown by participant categorization</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-xs text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 p-6">
-              <BarChart3 className="w-8 h-8 text-slate-300 mb-2" />
-              <p className="font-semibold text-slate-600">Demographic charts will render dynamically</p>
-              <p className="text-slate-400 mt-1 max-w-xs">
-                As verified participants check in through live session QR codes, distribution charts populate automatically.
-              </p>
-            </div>
+            {participantTypes.length ? <div className="space-y-3 py-3">
+              {participantTypes.map(([type, count]) => <div key={type} className="space-y-1">
+                <div className="flex justify-between text-xs"><span className="font-medium text-slate-700">{type}</span><span className="text-slate-500">{count}</span></div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-nice-blue-500" style={{ width: `${Math.round((count / attendance.length) * 100)}%` }} /></div>
+              </div>)}
+            </div> : <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-xs text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 p-6"><BarChart3 className="w-8 h-8 text-slate-300 mb-2" /><p className="font-semibold text-slate-600">No attendance records yet</p><p className="mt-1">Participant breakdown will appear after check-ins are recorded.</p></div>}
           </CardContent>
         </Card>
 
@@ -74,13 +95,9 @@ export default function AnalyticsPage() {
             <CardDescription>Monthly growth and participation trend across Rwanda</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-xs text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 p-6">
-              <TrendingUp className="w-8 h-8 text-slate-300 mb-2" />
-              <p className="font-semibold text-slate-600">Temporal participation timeline</p>
-              <p className="text-slate-400 mt-1 max-w-xs">
-                Timeline visualization of clean energy educational outreach and attendance over calendar quarters.
-              </p>
-            </div>
+            {monthlyCounts.length ? <div className="space-y-3 py-3">
+              {monthlyCounts.map(([month, count]) => <div key={month} className="flex items-center gap-3 text-xs"><span className="w-20 text-slate-600">{month}</span><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(4, Math.round((count / Math.max(...monthlyCounts.map((item) => item[1]))) * 100))}%` }} /></div><span className="w-8 text-right text-slate-500">{count}</span></div>)}
+            </div> : <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-xs text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 p-6"><TrendingUp className="w-8 h-8 text-slate-300 mb-2" /><p className="font-semibold text-slate-600">No attendance trajectory yet</p><p className="mt-1">Monthly totals appear as check-ins are recorded.</p></div>}
           </CardContent>
         </Card>
       </div>

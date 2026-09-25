@@ -8,7 +8,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Input } from '../../../../components/ui/Input'
 import { Button } from '../../../../components/ui/Button'
 import { SessionType, DuplicatePolicy } from '../../../../types/session'
-import { createSession } from '../../../../lib/sessions/session-service'
+
+function getKigaliDate(): string {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Africa/Kigali', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date())
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
 
 export default function NewSessionPage() {
   const router = useRouter()
@@ -25,7 +32,7 @@ export default function NewSessionPage() {
   const [country] = useState('Rwanda')
 
   // Step 3: Date & Time
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(getKigaliDate())
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('12:00')
   const [attendanceOpens, setAttendanceOpens] = useState('08:30')
@@ -35,12 +42,14 @@ export default function NewSessionPage() {
   const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>('PREVENT_BY_EMAIL')
 
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
-  const handlePublish = (e: React.FormEvent) => {
+  const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
-
-    const session = createSession({
+    setSubmitError('')
+    try {
+    const response = await fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
       title: title || 'NiCE Clean Energy Workshop',
       description,
       type,
@@ -48,14 +57,17 @@ export default function NewSessionPage() {
       date,
       startTime,
       endTime,
-      attendanceOpens: `${date}T${attendanceOpens}:00`,
-      attendanceCloses: `${date}T${attendanceCloses}:00`,
+      attendanceOpens: new Date(`${date}T${attendanceOpens}:00+02:00`).toISOString(),
+      attendanceCloses: new Date(`${date}T${attendanceCloses}:00+02:00`).toISOString(),
       duplicatePolicy,
-    })
-
-    setTimeout(() => {
-      router.push(`/sessions/${session.id}/qr`)
-    }, 300)
+    }) })
+    const result = await response.json()
+    if (!response.ok || !result.success) throw new Error(result.error || 'Unable to save session')
+    router.push(`/sessions/${result.data.id}/qr`)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Unable to save session')
+      setSubmitting(false)
+    }
   }
 
   const steps = [
@@ -306,6 +318,7 @@ export default function NewSessionPage() {
                 </select>
               </div>
 
+              {submitError && <p role="alert" className="text-sm text-rose-700">{submitError}</p>}
               <div className="flex justify-between pt-4 border-t border-slate-100">
                 <Button variant="outline" onClick={() => setStep(3)}>
                   ← Back

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   ShieldCheck,
   Users,
@@ -11,19 +11,53 @@ import {
   Clock,
   Sparkles,
   Lock,
+  UserPlus,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
 import { Badge } from '../../../components/ui/Badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../components/ui/Table'
 import { ROLE_DESCRIPTIONS, ROLE_PERMISSIONS } from '../../../lib/permissions/roles'
-import { SEED_USERS } from '../../../lib/auth/constants'
 import { formatInitials } from '../../../utils/format'
-import { UserRole } from '../../../types/user'
+import { User, UserRole } from '../../../types/user'
 
 type SettingsTab = 'team' | 'permissions' | 'organization'
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('team')
+  const [users, setUsers] = useState<User[]>([])
+  const [teamError, setTeamError] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteRole, setInviteRole] = useState<UserRole>('STAFF')
+  const [inviteStatus, setInviteStatus] = useState('')
+  const [inviting, setInviting] = useState(false)
+
+  async function sendInvitation(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setInviteStatus('')
+    setInviting(true)
+    try {
+      const response = await fetch('/api/invitations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, name: inviteName, role: inviteRole }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Invitation could not be sent.')
+      setInviteStatus(result.message)
+      setInviteEmail('')
+      setInviteName('')
+    } catch (error) {
+      setInviteStatus(error instanceof Error ? error.message : 'Invitation could not be sent.')
+    } finally { setInviting(false) }
+  }
+
+  useEffect(() => {
+    fetch('/api/team').then(async (response) => {
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Unable to load staff directory')
+      setUsers(result.data)
+    }).catch((error) => setTeamError(error instanceof Error ? error.message : 'Unable to load staff directory'))
+  }, [])
 
   const capabilities = [
     { key: 'session:create', label: 'Create & Publish Sessions', description: 'Schedule new lectures, workshops, and youth outreach' },
@@ -70,7 +104,7 @@ export default function SettingsPage() {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>Staff Directory ({SEED_USERS.length})</span>
+          <span>Staff Directory ({users.length})</span>
         </button>
 
         <button
@@ -102,6 +136,21 @@ export default function SettingsPage() {
       {activeTab === 'team' && (
         <div className="space-y-6 animate-in fade-in duration-200">
           <Card>
+            <CardHeader>
+              <CardTitle>Invite a team member</CardTitle>
+              <CardDescription>Choose an access role. The invitation link expires after seven days.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={sendInvitation} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+                <label className="text-xs font-semibold text-slate-700">Email address<input required type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" placeholder="colleague@example.rw" /></label>
+                <label className="text-xs font-semibold text-slate-700">Name (optional)<input value={inviteName} onChange={(event) => setInviteName(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" placeholder="Colleague name" /></label>
+                <label className="text-xs font-semibold text-slate-700">Role<select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as UserRole)} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm">{(['ADMIN', 'MANAGER', 'STAFF', 'VIEWER'] as UserRole[]).map((role) => <option key={role} value={role}>{ROLE_DESCRIPTIONS[role].title}</option>)}</select></label>
+                <button disabled={inviting} className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-60"><UserPlus className="h-4 w-4" />{inviting ? 'Sending…' : 'Send invitation'}</button>
+              </form>
+              {inviteStatus && <p role="status" className="mt-3 text-sm text-slate-700">{inviteStatus}</p>}
+            </CardContent>
+          </Card>
+          <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle>Authorized Staff Accounts</CardTitle>
@@ -110,10 +159,11 @@ export default function SettingsPage() {
                 </CardDescription>
               </div>
               <Badge variant="info" size="sm">
-                4 Active Accounts
+                {users.filter((user) => user.isActive).length} Active Accounts
               </Badge>
             </CardHeader>
             <CardContent>
+              {teamError && <p role="alert" className="mb-3 text-sm text-rose-700">{teamError}</p>}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -125,7 +175,8 @@ export default function SettingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {SEED_USERS.map((user) => (
+                  {users.length === 0 && !teamError && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-slate-500">No staff accounts have been created.</TableCell></TableRow>}
+                  {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center space-x-3">
@@ -156,8 +207,8 @@ export default function SettingsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="success" size="sm" dot>
-                          Active
+                        <Badge variant={user.isActive ? 'success' : 'neutral'} size="sm" dot>
+                          {user.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-slate-500">

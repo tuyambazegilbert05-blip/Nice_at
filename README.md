@@ -25,7 +25,7 @@ The **NiCE Attendance Platform** is a modern, scientific, production-grade event
 | **Framework** | Next.js (App Router, Server Components, Server Actions) |
 | **Language** | TypeScript (Strict Mode) |
 | **Styling** | Tailwind CSS + NiCE Scientific Design Tokens |
-| **Database & ORM** | PostgreSQL + Prisma ORM |
+| **Database** | PostgreSQL + `pg` connection pool and versioned SQL migrations |
 | **Data Validation** | Zod (Client & Server unified schemas) |
 | **Motion & Dynamics** | GSAP 3 (GreenSock Animation Platform) + Context Lifecycles |
 | **3D Energy Systems** | Three.js (Progressive enhancement with SVG/CSS fallback) |
@@ -78,10 +78,10 @@ npm install
 
 ### 4. Database Initialization
 ```bash
-npm run db:generate
-npm run db:push
-npm run db:seed
+npm run db:migrate
+npm run db:seed-admin
 ```
+Set `DATABASE_URL` and the one-time `INITIAL_ADMIN_*` values in `.env.local` first. See [database setup](database/README.md).
 
 ### 5. Start Development Server
 ```bash

@@ -3,8 +3,28 @@ import { Users, Search, Download } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../components/ui/Table'
 import { Button } from '../../../components/ui/Button'
+import { getAllAttendance } from '../../../lib/attendance/check-in-service'
+import { getCurrentUser } from '../../../lib/auth'
+import { hasPermission } from '../../../lib/permissions/rbac'
+import { redirect } from 'next/navigation'
 
-export default function ParticipantsPage() {
+export default async function ParticipantsPage() {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (!hasPermission(user.role, 'attendance:view')) redirect('/dashboard')
+  const attendance = await getAllAttendance()
+  const participants = new Map<string, { name: string; email: string; type: string; faculty: string | null; sessions: Set<string>; lastAttended: string }>()
+  for (const record of attendance) {
+    const key = record.email.trim().toLowerCase()
+    const existing = participants.get(key)
+    if (existing) {
+      existing.sessions.add(record.sessionId)
+      if (new Date(record.submittedAt) > new Date(existing.lastAttended)) existing.lastAttended = String(record.submittedAt)
+    } else {
+      participants.set(key, { name: record.fullName, email: record.email, type: record.participantType, faculty: record.faculty || null, sessions: new Set([record.sessionId]), lastAttended: String(record.submittedAt) })
+    }
+  }
+  const directory = [...participants.values()].sort((a, b) => a.name.localeCompare(b.name))
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
@@ -48,7 +68,7 @@ export default function ParticipantsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
+              {directory.length === 0 ? <TableRow>
                 <TableCell colSpan={5} className="text-center py-12 text-slate-400">
                   <div className="flex flex-col items-center justify-center">
                     <Users className="w-8 h-8 text-slate-300 mb-2" />
@@ -56,7 +76,13 @@ export default function ParticipantsPage() {
                     <p className="text-[11px] text-slate-400">Attendees will be indexed automatically when checking into events.</p>
                   </div>
                 </TableCell>
-              </TableRow>
+              </TableRow> : directory.map((participant) => <TableRow key={participant.email}>
+                <TableCell><span className="block font-medium text-slate-800">{participant.name}</span><span className="text-xs text-slate-500">{participant.email}</span></TableCell>
+                <TableCell>{participant.type}</TableCell>
+                <TableCell>{participant.faculty || '—'}</TableCell>
+                <TableCell>{participant.sessions.size}</TableCell>
+                <TableCell>{new Date(participant.lastAttended).toLocaleDateString('en-RW', { timeZone: 'Africa/Kigali' })}</TableCell>
+              </TableRow>)}
             </TableBody>
           </Table>
         </CardContent>

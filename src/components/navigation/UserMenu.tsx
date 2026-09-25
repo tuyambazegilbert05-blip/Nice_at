@@ -10,12 +10,7 @@ import { AuthUser } from '../../types/user'
 export function UserMenu() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const [user, setUser] = useState<AuthUser>({
-    id: 'usr_admin_001',
-    name: 'Gilbert Niyitegeka',
-    email: 'admin@niceclub.rw',
-    role: 'ADMIN',
-  })
+  const [user, setUser] = useState<AuthUser | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -59,16 +54,16 @@ export function UserMenu() {
         className="flex items-center space-x-2.5 p-1.5 rounded-xl hover:bg-slate-100 transition-colors focus:outline-none"
       >
         <div className="w-8 h-8 rounded-lg bg-nice-blue-100 border border-nice-blue-200 text-nice-blue-700 font-bold text-xs flex items-center justify-center">
-          {formatInitials(user.name)}
+          {user ? formatInitials(user.name) : '…'}
         </div>
         <div className="hidden sm:block text-left">
-          <p className="text-xs font-semibold text-slate-800 leading-none">{user.name}</p>
-          <span className="text-[10px] text-slate-500 font-medium">{user.role}</span>
+          <p className="text-xs font-semibold text-slate-800 leading-none">{user?.name || 'Loading profile'}</p>
+          <span className="text-[10px] text-slate-500 font-medium">{user?.role || ''}</span>
         </div>
         <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
       </button>
 
-      {isOpen && (
+      {isOpen && user && (
         <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-slate-200 shadow-elevated py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
           <div className="px-4 py-2 border-b border-slate-100">
             <p className="text-xs font-bold text-slate-900">{user.name}</p>

@@ -19,6 +19,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'qr:generate',
     'users:manage',
     'settings:manage',
+    'communications:send',
   ],
   MANAGER: [
     'session:create',

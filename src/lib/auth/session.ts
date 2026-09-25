@@ -1,42 +1,24 @@
 import { cookies } from 'next/headers'
 import { AuthUser, User, UserRole } from '../../types/user'
 import { createSessionToken, verifySessionToken } from './jwt'
-import { hashPassword, verifyPassword } from './passwords'
+import { verifyPassword } from './passwords'
 import { hasMinimumRole, UnauthorizedError } from '../permissions/rbac'
-import { SESSION_COOKIE_NAME, SEED_USERS } from './constants'
+import { SESSION_COOKIE_NAME } from './constants'
+import { query } from '../database/client'
 
-export { SESSION_COOKIE_NAME, SEED_USERS }
-
-// Default seed hashed password for 'NiCE@Rwanda2026!'
-const DEFAULT_PASSWORD_HASH = hashPassword('NiCE@Rwanda2026!')
-
-const USER_CREDENTIALS: Record<string, string> = {
-  'admin@niceclub.rw': DEFAULT_PASSWORD_HASH,
-  'manager@niceclub.rw': DEFAULT_PASSWORD_HASH,
-  'staff@niceclub.rw': DEFAULT_PASSWORD_HASH,
-  'viewer@niceclub.rw': DEFAULT_PASSWORD_HASH,
-}
+export { SESSION_COOKIE_NAME }
 
 /**
  * Authenticates user by email and password.
  */
 export async function authenticate(email: string, password: string): Promise<AuthUser | null> {
   const normalizedEmail = email.trim().toLowerCase()
-  const user = SEED_USERS.find((u) => u.email.toLowerCase() === normalizedEmail)
-
-  if (!user || !user.isActive) {
-    return null
-  }
-
-  const storedHash = USER_CREDENTIALS[normalizedEmail]
-  if (!storedHash) {
-    return null
-  }
-
-  const isValid = verifyPassword(password, storedHash)
-  if (!isValid) {
-    return null
-  }
+  const result = await query<{ id: string; name: string; email: string; role: UserRole; password_hash: string; is_active: boolean }>(
+    'SELECT id, name, email, role, password_hash, is_active FROM users WHERE email=$1',
+    [normalizedEmail],
+  )
+  const user = result.rows[0]
+  if (!user || !user.is_active || !verifyPassword(password, user.password_hash)) return null
 
   return {
     id: user.id,
@@ -58,7 +40,12 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null
     }
 
-    return verifySessionToken(sessionCookie.value)
+    const tokenUser = verifySessionToken(sessionCookie.value)
+    if (!tokenUser) return null
+    const result = await query<{ id: string; name: string; email: string; role: UserRole }>(
+      'SELECT id, name, email, role FROM users WHERE id=$1 AND is_active=true', [tokenUser.id],
+    )
+    return result.rows[0] || null
   } catch {
     return null
   }
@@ -106,6 +93,9 @@ export async function requireAuth(minimumRole?: UserRole): Promise<AuthUser> {
   return user
 }
 
-export function getAllUsers(): User[] {
-  return [...SEED_USERS]
+export async function getAllUsers(): Promise<User[]> {
+  const result = await query<User>(
+    'SELECT id,name,email,role,is_active AS "isActive",created_at AS "createdAt",updated_at AS "updatedAt" FROM users ORDER BY name',
+  )
+  return result.rows
 }

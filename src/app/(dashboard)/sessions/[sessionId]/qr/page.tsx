@@ -14,46 +14,33 @@ import {
   Calendar,
   Sparkles,
 } from 'lucide-react'
-import { getSessionById } from '../../../../../lib/sessions/session-service'
 import { Card, CardContent } from '../../../../../components/ui/Card'
 import { Button } from '../../../../../components/ui/Button'
 import { formatDate } from '../../../../../utils/date'
 import { Session } from '../../../../../types/session'
 import { downloadBrandedFlyer } from '../../../../../lib/qr/flyer-generator'
 
-const DEFAULT_SESSION: Session = {
-  id: 'sess_default',
-  title: 'Rwanda Youth Nuclear Summit 2026',
-  description: 'Youth-led conference exploring clean nuclear energy for Rwanda and East Africa sustainable development.',
-  type: 'YOUTH_EVENT',
-  location: 'Kigali Convention Centre, Kigali, Rwanda',
-  date: '2026-08-14',
-  startTime: '09:00',
-  endTime: '13:00',
-  attendanceOpens: '2026-08-14T08:30:00Z',
-  attendanceCloses: '2026-08-14T13:30:00Z',
-  status: 'OPEN',
-  publicToken: 'nice-summit-2026-demo-token',
-  duplicatePolicy: 'PREVENT_BY_EMAIL',
-  createdAt: '2026-08-14T08:00:00Z',
-  updatedAt: '2026-08-14T08:00:00Z',
-  _count: { attendance: 0 },
-}
-
 export default function SessionQRPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
-  const session = getSessionById(sessionId) || DEFAULT_SESSION
+  const [session, setSession] = useState<Session | null>(null)
+  const [loadError, setLoadError] = useState('')
 
   const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const [copied, setCopied] = useState(false)
   const [generatingFlyer, setGeneratingFlyer] = useState(false)
   const posterRef = useRef<HTMLDivElement>(null)
 
-  const attendanceUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/attend/${session.publicToken}`
-    : `/attend/${session.publicToken}`
+  useEffect(() => {
+    fetch(`/api/sessions/${encodeURIComponent(sessionId)}`).then(async (response) => {
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Unable to load session')
+      setSession(result.data)
+    }).catch((error) => setLoadError(error instanceof Error ? error.message : 'Unable to load session'))
+  }, [sessionId])
 
   useEffect(() => {
+    if (!session) return
+    const attendanceUrl = `${window.location.origin}/attend/${session.publicToken}`
     QRCode.toDataURL(attendanceUrl, {
       width: 520,
       margin: 2,
@@ -65,7 +52,13 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
     })
       .then((url) => setQrDataUrl(url))
       .catch((err) => console.error('Failed to generate QR code', err))
-  }, [attendanceUrl])
+  }, [session])
+
+  if (!session) return <p className="p-6 text-sm text-slate-600">{loadError || 'Loading session…'}</p>
+
+  const attendanceUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/attend/${session.publicToken}`
+    : `/attend/${session.publicToken}`
 
   const handleCopyLink = () => {
     if (typeof navigator !== 'undefined') {

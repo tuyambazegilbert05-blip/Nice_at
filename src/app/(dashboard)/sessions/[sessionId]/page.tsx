@@ -14,40 +14,42 @@ import {
   Copy,
   Check,
 } from 'lucide-react'
-import { getSessionById } from '../../../../lib/sessions/session-service'
+import { Session } from '../../../../types/session'
+import { Attendance } from '../../../../types/attendance'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../../components/ui/Card'
 import { Badge } from '../../../../components/ui/Badge'
 import { Button } from '../../../../components/ui/Button'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../../components/ui/Table'
 import { formatDate } from '../../../../utils/date'
 
-const FALLBACK_SESSION = {
-  title: 'Rwanda Youth Nuclear Summit 2026',
-  description: 'Youth-led conference exploring clean nuclear energy for Rwanda and East Africa sustainable development.',
-  type: 'YOUTH_EVENT' as const,
-  location: 'Kigali Convention Centre, Kigali, Rwanda',
-  date: '2026-08-14T09:00:00.000Z',
-  startTime: '09:00',
-  endTime: '13:00',
-  attendanceOpens: '2026-08-14T08:00:00.000Z',
-  attendanceCloses: '2026-08-14T14:00:00.000Z',
-  status: 'OPEN' as const,
-  publicToken: 'nice-summit-2026-demo-token',
-  duplicatePolicy: 'PREVENT_BY_EMAIL' as const,
-  createdAt: '2026-08-01T08:00:00.000Z',
-  updatedAt: '2026-08-01T08:00:00.000Z',
-  _count: { attendance: 0 },
-}
-
 export default function SessionDetailPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
-  const session = getSessionById(sessionId) || {
-    id: sessionId,
-    ...FALLBACK_SESSION,
-  }
-
+  const [session, setSession] = useState<Session | null>(null)
+  const [loadError, setLoadError] = useState('')
   const [copied, setCopied] = useState(false)
-  const [isOpen, setIsOpen] = useState(session.status === 'OPEN')
+  const [isOpen, setIsOpen] = useState(false)
+  const [statusError, setStatusError] = useState('')
+  const [attendees, setAttendees] = useState<Attendance[]>([])
+  const [attendeeError, setAttendeeError] = useState('')
+
+  React.useEffect(() => {
+    fetch(`/api/sessions/${encodeURIComponent(sessionId)}`).then(async (response) => {
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Unable to load session')
+      setSession(result.data)
+      setIsOpen(result.data.status === 'OPEN')
+      try {
+        const attendanceResponse = await fetch(`/api/attendance?sessionId=${encodeURIComponent(sessionId)}`)
+        const attendanceResult = await attendanceResponse.json()
+        if (!attendanceResponse.ok) throw new Error(attendanceResult.error || 'Unable to load attendance records')
+        setAttendees(attendanceResult.data)
+      } catch (error) {
+        setAttendeeError(error instanceof Error ? error.message : 'Unable to load attendance records')
+      }
+    }).catch((error) => setLoadError(error instanceof Error ? error.message : 'Unable to load session'))
+  }, [sessionId])
+
+  if (!session) return <p className="p-6 text-sm text-slate-600">{loadError || 'Loading session…'}</p>
 
   const attendanceUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/attend/${session.publicToken}`
@@ -58,6 +60,22 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
       navigator.clipboard.writeText(attendanceUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleToggleStatus = async () => {
+    setStatusError('')
+    const status = isOpen ? 'CLOSED' : 'OPEN'
+    try {
+      const response = await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Unable to update session status')
+      setSession(result.data)
+      setIsOpen(result.data.status === 'OPEN')
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Unable to update session status')
     }
   }
 
@@ -121,12 +139,13 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={handleToggleStatus}
               >
                 {isOpen ? 'Close Attendance' : 'Open Attendance'}
               </Button>
             </div>
           </div>
+          {statusError && <p role="alert" className="mt-3 text-sm text-rose-700">{statusError}</p>}
         </CardContent>
       </Card>
 
@@ -178,9 +197,9 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
             <CardTitle>Attendance Roster</CardTitle>
             <CardDescription>Verified participant check-ins captured through the QR link</CardDescription>
           </div>
-          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>
-            Export CSV
-          </Button>
+            <a href={`/api/exports?sessionId=${encodeURIComponent(session.id)}`} download>
+              <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export CSV</Button>
+            </a>
         </CardHeader>
         <CardContent>
           <Table>
@@ -194,11 +213,18 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
+              {attendeeError && <TableRow><TableCell colSpan={5} className="text-center py-8 text-rose-700">{attendeeError}</TableCell></TableRow>}
+              {!attendeeError && attendees.length === 0 ? <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-slate-400">
                   No attendees have checked in yet. Share the QR code with participants.
                 </TableCell>
-              </TableRow>
+              </TableRow> : attendees.map((attendee) => <TableRow key={attendee.id}>
+                <TableCell>{attendee.fullName}</TableCell>
+                <TableCell>{attendee.email}</TableCell>
+                <TableCell>{attendee.participantType}</TableCell>
+                <TableCell>{[attendee.faculty, attendee.program].filter(Boolean).join(' · ') || '—'}</TableCell>
+                <TableCell>{new Date(attendee.submittedAt).toLocaleString('en-RW', { timeZone: 'Africa/Kigali' })}</TableCell>
+              </TableRow>)}
             </TableBody>
           </Table>
         </CardContent>

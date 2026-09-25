@@ -6,13 +6,12 @@ import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
 import { Input } from '../../../components/ui/Input'
 import { Button } from '../../../components/ui/Button'
-import { Badge } from '../../../components/ui/Badge'
-import { ShieldCheck, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('admin@niceclub.rw')
-  const [password, setPassword] = useState('NiCE@Rwanda2026!')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,12 +48,6 @@ export default function LoginPage() {
       setError('An unexpected error occurred. Please try again.')
       setLoading(false)
     }
-  }
-
-  const fillCredentials = (demoEmail: string) => {
-    setEmail(demoEmail)
-    setPassword('NiCE@Rwanda2026!')
-    setError(null)
   }
 
   return (
@@ -131,68 +124,6 @@ export default function LoginPage() {
         </CardContent>
       </Card>
 
-      {/* Development Quick Role Switcher for Phase 02 Evaluation */}
-      <Card className="bg-slate-50/80 border-slate-200/80 shadow-subtle">
-        <CardContent className="p-4 space-y-2.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-700 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-nice-blue-600" />
-              Demo Roles & Accounts
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono">Password: NiCE@Rwanda2026!</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
-            <button
-              type="button"
-              onClick={() => fillCredentials('admin@niceclub.rw')}
-              className="p-2 rounded-lg bg-white border border-slate-200 text-left hover:border-nice-blue-400 transition-colors shadow-subtle"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800">Admin</span>
-                <Badge variant="info" size="sm">ADMIN</Badge>
-              </div>
-              <span className="text-[10px] text-slate-500 block truncate">admin@niceclub.rw</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillCredentials('manager@niceclub.rw')}
-              className="p-2 rounded-lg bg-white border border-slate-200 text-left hover:border-nice-blue-400 transition-colors shadow-subtle"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800">Manager</span>
-                <Badge variant="default" size="sm">MANAGER</Badge>
-              </div>
-              <span className="text-[10px] text-slate-500 block truncate">manager@niceclub.rw</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillCredentials('staff@niceclub.rw')}
-              className="p-2 rounded-lg bg-white border border-slate-200 text-left hover:border-nice-blue-400 transition-colors shadow-subtle"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800">Staff</span>
-                <Badge variant="success" size="sm">STAFF</Badge>
-              </div>
-              <span className="text-[10px] text-slate-500 block truncate">staff@niceclub.rw</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillCredentials('viewer@niceclub.rw')}
-              className="p-2 rounded-lg bg-white border border-slate-200 text-left hover:border-nice-blue-400 transition-colors shadow-subtle"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800">Viewer</span>
-                <Badge variant="neutral" size="sm">VIEWER</Badge>
-              </div>
-              <span className="text-[10px] text-slate-500 block truncate">viewer@niceclub.rw</span>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

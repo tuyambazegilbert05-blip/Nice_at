@@ -25,8 +25,10 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const sessionId = searchParams.get('sessionId')
 
-    const records = sessionId ? getAttendanceForSession(sessionId) : getAllAttendance()
-    const session = sessionId ? getSessionById(sessionId) : null
+    const [records, session] = await Promise.all([
+      sessionId ? getAttendanceForSession(sessionId) : getAllAttendance(),
+      sessionId ? getSessionById(sessionId) : Promise.resolve(null),
+    ])
 
     // Format as CSV
     const headers = [

@@ -15,6 +15,7 @@ export type Permission =
   | 'qr:generate'
   | 'users:manage'
   | 'settings:manage'
+  | 'communications:send'
 
 export interface User {
   id: string

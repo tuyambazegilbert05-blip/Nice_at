@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nice_attendance_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Africa/Kigali
+      - NEXT_PUBLIC_APP_URL=https://attendance.niceclub.rw
+      - AUTH_SECRET=change-this-to-a-very-secure-random-secret-key-in-production
+      - DATABASE_URL=postgresql://nice_user:nice_secure_pw@db:5432/nice_attendance?schema=public
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    container_name: nice_attendance_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=nice_user
+      - POSTGRES_PASSWORD=nice_secure_pw
+      - POSTGRES_DB=nice_attendance
+    volumes:
+      - nice_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  nice_postgres_data:
+    driver: local
