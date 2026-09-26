@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { getSessionByPublicToken, getSessionById } from '../../../lib/sessions/session-service'
 import { getCurrentUser } from '../../../lib/auth'
 import { Session } from '../../../types/session'
+import { isWithinAttendanceWindow } from '../../../utils/date'
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,17 +48,40 @@ export async function GET(request: NextRequest) {
       errorCorrectionLevel: 'H',
     })
 
+    let publicSession: (Record<string, string | boolean> & { attendanceState: string }) | undefined
+    if (session && token) {
+      const windowState = isWithinAttendanceWindow(session.attendanceOpens, session.attendanceCloses)
+      const statusAllowsCheckIn = ['OPEN', 'CLOSING_SOON'].includes(session.status)
+      const attendanceState = session.status === 'CLOSED'
+        ? 'closed'
+        : windowState.isBefore
+          ? 'scheduled'
+          : windowState.isAfter
+            ? 'expired'
+            : statusAllowsCheckIn
+              ? session.status === 'CLOSING_SOON' || windowState.isClosingSoon ? 'closing_soon' : 'open'
+              : 'not_opened'
+      publicSession = {
+        title: session.title,
+        description: session.description,
+        type: session.type,
+        location: session.location,
+        date: String(session.date),
+        startTime: session.startTime,
+        endTime: session.endTime,
+        attendanceOpens: new Date(session.attendanceOpens).toISOString(),
+        attendanceCloses: new Date(session.attendanceCloses).toISOString(),
+        status: session.status,
+        isOpen: statusAllowsCheckIn && windowState.isOpen,
+        attendanceState,
+      }
+    }
+
     return NextResponse.json({
       success: true,
       qrDataUrl,
       targetUrl,
-      session: session && token ? {
-        title: session.title, description: session.description, type: session.type,
-        location: session.location, date: session.date, startTime: session.startTime,
-        endTime: session.endTime, attendanceOpens: session.attendanceOpens,
-        attendanceCloses: session.attendanceCloses, status: session.status,
-        isOpen: session.status !== 'CLOSED' && Date.now() >= new Date(session.attendanceOpens).getTime() && Date.now() <= new Date(session.attendanceCloses).getTime(),
-      } : undefined,
+      session: publicSession,
     })
   } catch (error) {
     console.error('Error generating QR code:', error)

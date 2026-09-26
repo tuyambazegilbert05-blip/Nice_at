@@ -9,6 +9,7 @@ import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { getSessionByPublicToken } from '../../../lib/sessions/session-service'
 import { deliverBrandedEmail } from '../../../lib/email/brevo'
+import { formatDate } from '../../../utils/date'
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     try {
       const session = await getSessionByPublicToken(body.token)
       if (session) {
-        const sessionDate = new Date(`${String(session.date).slice(0, 10)}T12:00:00+02:00`).toLocaleDateString('en-RW', { dateStyle: 'long', timeZone: 'Africa/Kigali' })
+        const sessionDate = formatDate(session.date, { dateStyle: 'long', timeZone: 'Africa/Kigali' })
         thankYou = await deliverBrandedEmail({
           to: attendance.email,
           name: attendance.fullName,

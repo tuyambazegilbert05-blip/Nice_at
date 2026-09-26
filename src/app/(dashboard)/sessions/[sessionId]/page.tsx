@@ -13,6 +13,7 @@ import {
   CheckCircle,
   Copy,
   Check,
+  BarChart3,
 } from 'lucide-react'
 import { Session } from '../../../../types/session'
 import { Attendance } from '../../../../types/attendance'
@@ -121,6 +122,11 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
 
             {/* Actions Toolbar */}
             <div className="flex flex-wrap items-center gap-2.5">
+              <Link href={`/sessions/${session.id}/analytics`}>
+                <Button variant="outline" size="sm" leftIcon={<BarChart3 className="w-4 h-4" />}>
+                  Analytics
+                </Button>
+              </Link>
               <Link href={`/sessions/${session.id}/qr`}>
                 <Button variant="primary" size="sm" leftIcon={<QrCode className="w-4 h-4" />}>
                   Display QR

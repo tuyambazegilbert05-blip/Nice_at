@@ -1,13 +1,51 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Menu, Plus, Sparkles } from 'lucide-react'
 import { UserMenu } from './UserMenu'
 import { Sidebar } from './Sidebar'
+import { gsap } from '../../motion/gsap'
+import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const backdrop = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const closing = useRef(false)
+
+  const closeMobileMenu = () => {
+    if (closing.current) return
+    closing.current = true
+    if (!panel.current || !backdrop.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setMobileMenuOpen(false)
+      return
+    }
+    gsap.timeline({ onComplete: () => setMobileMenuOpen(false) })
+      .to(panel.current, { x: -16, autoAlpha: 0, duration: MOTION_DURATION.short, ease: MOTION_EASE.exit }, 0)
+      .to(backdrop.current, { autoAlpha: 0, duration: MOTION_DURATION.short, ease: MOTION_EASE.exit }, 0)
+  }
+
+  useEffect(() => {
+    if (!mobileMenuOpen) { closing.current = false; return }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const media = gsap.matchMedia()
+    if (backdrop.current && panel.current) {
+      media.add('(prefers-reduced-motion: no-preference)', () => {
+        gsap.fromTo(backdrop.current, { autoAlpha: 0 }, { autoAlpha: 1, duration: MOTION_DURATION.short, ease: MOTION_EASE.standard })
+        gsap.fromTo(panel.current, { x: -18, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: MOTION_DURATION.standard, ease: MOTION_EASE.enter })
+      })
+      media.add('(prefers-reduced-motion: reduce)', () => gsap.set([backdrop.current, panel.current], { autoAlpha: 1, clearProps: 'transform' }))
+    }
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') closeMobileMenu() }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+      media.revert()
+    }
+  }, [mobileMenuOpen])
 
   return (
     <>
@@ -49,13 +87,14 @@ export function Header() {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
+        <div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Main navigation">
           <div
+            ref={backdrop}
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={closeMobileMenu}
           />
-          <div className="relative w-72 max-w-[80vw] h-full shadow-2xl z-10">
-            <Sidebar onClose={() => setMobileMenuOpen(false)} />
+          <div ref={panel} className="relative z-10 h-full w-72 max-w-[80vw] shadow-2xl">
+            <Sidebar onClose={closeMobileMenu} />
           </div>
         </div>
       )}

@@ -8,6 +8,44 @@ import { Input } from '../../../components/ui/Input'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
 import { ParticipantType } from '../../../types'
+import { formatDate, formatDateTime } from '../../../utils/date'
+import { LoadingSpinner } from '../../../lottie/loading'
+import { ErrorAlertAnimation } from '../../../lottie/errors'
+
+type AttendanceState = 'open' | 'closing_soon' | 'scheduled' | 'not_opened' | 'closed' | 'expired'
+
+const ATTENDANCE_STATE_LABEL: Record<AttendanceState, string> = {
+  open: 'Attendance Open',
+  closing_soon: 'Closing Soon',
+  scheduled: 'Check-in Scheduled',
+  not_opened: 'Awaiting Organizer',
+  closed: 'Attendance Closed',
+  expired: 'Check-in Window Ended',
+}
+
+const ATTENDANCE_STATE_MESSAGE: Record<AttendanceState, string> = {
+  open: 'Check-in is accepting submissions now.',
+  closing_soon: 'Check-in is open, but the submission window is nearly over.',
+  scheduled: 'Check-in has not opened yet. The opening time is shown above.',
+  not_opened: 'The event team has not opened check-in yet.',
+  closed: 'The event team has closed attendance for this session.',
+  expired: 'The scheduled check-in window has ended.',
+}
+
+type PublicSession = {
+  title: string
+  description: string
+  type: string
+  location: string
+  date: string
+  startTime: string
+  endTime: string
+  attendanceOpens: string
+  attendanceCloses: string
+  status: string
+  isOpen: boolean
+  attendanceState: AttendanceState
+}
 
 export default function AttendTokenPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
@@ -18,15 +56,8 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
   const [error, setError] = useState<string | null>(null)
 
   // Session metadata loaded from verification
-  const [session, setSession] = useState<{
-    title: string
-    description: string
-    type: string
-    location: string
-    date: string
-    time: string
-    isOpen: boolean
-  } | null>(null)
+  const [session, setSession] = useState<PublicSession | null>(null)
+  const [linkError, setLinkError] = useState<string | null>(null)
 
   // Form Fields per Master Spec (Section 13 & 14)
   const [fullName, setFullName] = useState('')
@@ -42,24 +73,33 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
   const [honeypot, setHoneypot] = useState('')
 
   useEffect(() => {
-    // Verify session token
-    const verifyToken = async () => {
+    let active = true
+    const verifyToken = async (initial = false) => {
       try {
-        const res = await fetch(`/api/qr?token=${encodeURIComponent(token)}`)
+        const res = await fetch(`/api/qr?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
         const data = await res.json()
         if (!res.ok || !data.session) throw new Error(data.error || 'This attendance link is invalid.')
-        const verifiedSession = { ...data.session, time: `${data.session.startTime} — ${data.session.endTime} CAT` }
-        setSession(verifiedSession)
-        if (!verifiedSession.isOpen) router.replace(`/attend/${token}/closed`)
+        if (active) {
+          setSession(data.session as PublicSession)
+          setLinkError(null)
+        }
       } catch {
-        setError('This attendance link is invalid or the server could not be reached.')
+        if (active) setLinkError('This attendance link is invalid or the server could not be reached.')
       } finally {
-        setLoading(false)
+        if (active && initial) setLoading(false)
       }
     }
 
-    verifyToken()
-  }, [token, router])
+    void verifyToken(true)
+    const interval = window.setInterval(() => { void verifyToken() }, 30_000)
+    const refreshOnFocus = () => { void verifyToken() }
+    window.addEventListener('focus', refreshOnFocus)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshOnFocus)
+    }
+  }, [token])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,12 +144,9 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <LoadingSpinner label="Verifying attendance session" className="mb-3 h-16 w-16" />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/NiCE-Logo-Animated.gif"
-          alt="NiCE Club Logo"
-          className="w-20 h-20 object-contain drop-shadow-sm mb-3"
-        />
+        <img src="/brand/NiCE-Logo-Animated.gif" alt="NiCE Club Logo" className="w-20 h-20 object-contain drop-shadow-sm mb-3" />
         <p className="text-xs font-semibold text-slate-500 tracking-wide">
           Verifying session check-in…
         </p>
@@ -160,8 +197,12 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                 <Badge variant="default" size="sm">
                   {session.type}
                 </Badge>
-                <Badge variant="success" size="sm" dot>
-                  Attendance Open
+                <Badge
+                  variant={session.attendanceState === 'open' ? 'success' : session.attendanceState === 'closing_soon' ? 'warning' : 'neutral'}
+                  size="sm"
+                  dot
+                >
+                  {ATTENDANCE_STATE_LABEL[session.attendanceState]}
                 </Badge>
               </div>
 
@@ -178,22 +219,26 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
               <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-500 border-t border-slate-100">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-nice-blue-600 shrink-0" />
-                  <span>{session.date}</span>
+                  <span>{formatDate(session.date)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-nice-blue-600 shrink-0" />
-                  <span>{session.time}</span>
+                  <span>{session.startTime} — {session.endTime} CAT</span>
                 </div>
                 <div className="flex items-center gap-1.5 sm:col-span-2">
                   <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   <span>{session.location}</span>
+                </div>
+                <div className="flex items-start gap-1.5 sm:col-span-2">
+                  <Clock className="mt-0.5 w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span><strong className="font-semibold text-slate-700">Check-in window:</strong> {formatDateTime(session.attendanceOpens)} – {formatDateTime(session.attendanceCloses)}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Attendance Submission Form */}
+        {session?.isOpen ? (
         <Card className="border-slate-200 bg-white shadow-elevated">
           <CardContent className="p-6 sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -366,6 +411,22 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
             </form>
           </CardContent>
         </Card>
+        ) : session ? (
+          <Card className="border-amber-200 bg-white shadow-elevated">
+            <CardContent className="p-6 sm:p-8 text-center space-y-3">
+              <Badge variant={session.attendanceState === 'closed' || session.attendanceState === 'expired' ? 'neutral' : 'warning'} dot>
+                {ATTENDANCE_STATE_LABEL[session.attendanceState]}
+              </Badge>
+              <h2 className="text-lg font-bold text-slate-900">Attendance is not accepting submissions</h2>
+              <p className="text-sm text-slate-600">{ATTENDANCE_STATE_MESSAGE[session.attendanceState]}</p>
+              <p className="text-xs text-slate-500">Check-in window: {formatDateTime(session.attendanceOpens)} – {formatDateTime(session.attendanceCloses)}</p>
+            </CardContent>
+          </Card>
+        ) : linkError ? (
+          <Card className="border-rose-200 bg-white shadow-elevated">
+            <CardContent className="flex items-center gap-3 p-5 text-sm text-rose-700" role="alert"><ErrorAlertAnimation label="Attendance link error" className="h-10 w-10 shrink-0" /><span>{linkError}</span></CardContent>
+          </Card>
+        ) : null}
       </div>
     </div>
   )

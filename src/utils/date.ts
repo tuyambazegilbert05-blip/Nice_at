@@ -19,7 +19,7 @@ export function formatDate(
   }
 ): string {
   const date = typeof dateInput === 'string' || typeof dateInput === 'number' ? new Date(dateInput) : dateInput
-  if (isNaN(date.getTime())) return 'Invalid Date'
+  if (isNaN(date.getTime())) return 'Date unavailable'
   return new Intl.DateTimeFormat('en-RW', options).format(date)
 }
 
@@ -47,7 +47,7 @@ export function formatTime(
  */
 export function formatDateTime(dateInput: Date | string | number): string {
   const date = typeof dateInput === 'string' || typeof dateInput === 'number' ? new Date(dateInput) : dateInput
-  if (isNaN(date.getTime())) return 'Invalid Date'
+  if (isNaN(date.getTime())) return 'Date/time unavailable'
   return `${formatDate(date)}, ${formatTime(date)} CAT`
 }
 

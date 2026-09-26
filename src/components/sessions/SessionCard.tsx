@@ -1,4 +1,6 @@
-import React from 'react'
+'use client'
+
+import React, { useRef } from 'react'
 import Link from 'next/link'
 import { Calendar, Clock, MapPin, Users, QrCode, ArrowRight } from 'lucide-react'
 import { Card, CardContent } from '../ui/Card'
@@ -6,12 +8,44 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Session, SessionStatus } from '../../types/session'
 import { formatDate } from '../../utils/date'
+import { gsap } from '../../motion/gsap'
+import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
+import { useGSAP } from '../../motion/gsap/useGsap'
 
 interface SessionCardProps {
   session: Session
 }
 
 export function SessionCard({ session }: SessionCardProps) {
+  const card = useRef<HTMLDivElement>(null)
+  useGSAP(() => {
+    const element = card.current
+    if (!element) return
+    const media = gsap.matchMedia()
+    media.add('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)', () => {
+      gsap.set(element, { transformPerspective: 900, transformOrigin: 'center' })
+      const rotateX = gsap.quickTo(element, 'rotationX', { duration: MOTION_DURATION.standard, ease: MOTION_EASE.smooth })
+      const rotateY = gsap.quickTo(element, 'rotationY', { duration: MOTION_DURATION.standard, ease: MOTION_EASE.smooth })
+      const moveY = gsap.quickTo(element, 'y', { duration: MOTION_DURATION.standard, ease: MOTION_EASE.smooth })
+      const onMove = (event: PointerEvent) => {
+        const rect = element.getBoundingClientRect()
+        const x = (event.clientX - rect.left) / rect.width - 0.5
+        const y = (event.clientY - rect.top) / rect.height - 0.5
+        rotateX(-y * 2.4)
+        rotateY(x * 2.4)
+        moveY(-2)
+      }
+      const onLeave = () => { rotateX(0); rotateY(0); moveY(0) }
+      element.addEventListener('pointermove', onMove)
+      element.addEventListener('pointerleave', onLeave)
+      return () => {
+        element.removeEventListener('pointermove', onMove)
+        element.removeEventListener('pointerleave', onLeave)
+      }
+    })
+    return () => media.revert()
+  }, { scope: card, dependencies: [], revertOnUpdate: true })
+
   const getStatusBadge = (status: SessionStatus) => {
     switch (status) {
       case 'OPEN':
@@ -31,7 +65,8 @@ export function SessionCard({ session }: SessionCardProps) {
   const attendanceCount = session._count?.attendance ?? 0
 
   return (
-    <Card className="hover:border-nice-blue-300 hover:shadow-elevated transition-all group overflow-hidden">
+    <div ref={card} data-session-flip data-motion-item className="h-full [transform-style:preserve-3d]">
+    <Card className="h-full hover:border-nice-blue-300 hover:shadow-elevated transition-[border-color,box-shadow] duration-200 group overflow-hidden">
       <CardContent className="p-5 sm:p-6 space-y-4">
         {/* Header row: Type and Status */}
         <div className="flex items-center justify-between gap-2">
@@ -93,5 +128,6 @@ export function SessionCard({ session }: SessionCardProps) {
         </div>
       </CardContent>
     </Card>
+    </div>
   )
 }

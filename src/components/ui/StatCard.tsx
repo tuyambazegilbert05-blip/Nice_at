@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardContent } from './Card'
 import { cn } from '../../utils/cn'
+import { AnimatedNumber } from './AnimatedNumber'
 
 export interface StatCardProps {
   title: string
@@ -17,7 +18,7 @@ export interface StatCardProps {
 
 export function StatCard({ title, value, subtitle, icon, trend, className }: StatCardProps) {
   return (
-    <Card className={cn('overflow-hidden relative hover:border-nice-blue-200 transition-all group', className)}>
+    <Card data-motion-item className={cn('overflow-hidden relative hover:border-nice-blue-200 transition-all group', className)}>
       <CardContent className="p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p>
@@ -28,7 +29,7 @@ export function StatCard({ title, value, subtitle, icon, trend, className }: Sta
           )}
         </div>
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{value}</span>
+          <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{typeof value === 'number' ? <AnimatedNumber value={value} /> : value}</span>
           {trend && (
             <span
               className={cn(

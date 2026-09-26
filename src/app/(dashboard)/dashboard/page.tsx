@@ -10,6 +10,7 @@ import { getAllAttendance } from '../../../lib/attendance/check-in-service'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
+import { StaggerReveal } from '../../../motion/gsap/ScrollReveal'
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
@@ -24,9 +25,9 @@ export default async function DashboardPage() {
   const averageAttendance = sessions.length ? Math.round(attendance.length / sessions.length) : 0
   const recentSessions = sessions.slice(0, 5)
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <StaggerReveal className="space-y-8">
       {/* Welcome Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+      <div data-motion-item className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
             Operational Overview
@@ -75,7 +76,7 @@ export default async function DashboardPage() {
       {/* Main Grid: Active Sessions & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sessions Activity Section */}
-        <div className="lg:col-span-2 space-y-6">
+        <div data-motion-item className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -111,7 +112,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Right Column: Live QR Quick Action & System Readiness */}
-        <div className="space-y-6">
+        <div data-motion-item className="space-y-6">
           <Card className="bg-gradient-to-br from-nice-blue-50/60 to-white border-nice-blue-100">
             <CardHeader>
               <div className="flex items-center gap-2 text-nice-blue-700 font-semibold text-xs uppercase tracking-wider">
@@ -165,6 +166,6 @@ export default async function DashboardPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </StaggerReveal>
   )
 }

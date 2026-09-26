@@ -2,7 +2,9 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Sparkles, Home } from 'lucide-react'
+import { Sparkles, Home } from 'lucide-react'
+import { SuccessCheckmark } from '../../../../lottie/success'
+import { EnergyObjectLoader } from '../../../../three/scenes/EnergyObjectLoader'
 import { Card, CardContent } from '../../../../components/ui/Card'
 import { Button } from '../../../../components/ui/Button'
 
@@ -35,12 +37,8 @@ export default function CheckInSuccessPage() {
                 alt="NiCE Club Rwanda"
                 className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-sm rounded-xl"
               />
-              <div className="relative mx-auto w-16 h-16 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping opacity-75" />
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shadow-subtle relative z-10">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-              </div>
+              <EnergyObjectLoader label="NiCE nuclear energy orbital illustration" className="-my-3 h-24 w-24" />
+              <SuccessCheckmark label="Your attendance was recorded successfully" className="relative mx-auto h-16 w-16" />
             </div>
 
             <div className="space-y-2">

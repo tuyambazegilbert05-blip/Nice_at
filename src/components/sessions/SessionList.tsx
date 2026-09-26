@@ -6,6 +6,8 @@ import { CalendarDays, Plus, Search } from 'lucide-react'
 import { SessionCard } from './SessionCard'
 import { Button } from '../ui/Button'
 import { Session, SessionStatus } from '../../types/session'
+import { useFlipLayout } from '../../motion/gsap/useFlip'
+import { StaggerReveal } from '../../motion/gsap/ScrollReveal'
 
 interface SessionListProps {
   sessions: Session[]
@@ -23,6 +25,8 @@ export function SessionList({ sessions }: SessionListProps) {
       s.location.toLowerCase().includes(search.toLowerCase())
     return matchesFilter && matchesSearch
   })
+  const layoutKey = filteredSessions.map((session) => session.id).join('|')
+  const captureLayout = useFlipLayout(layoutKey, '[data-session-flip]')
 
   return (
     <div className="space-y-6">
@@ -33,7 +37,8 @@ export function SessionList({ sessions }: SessionListProps) {
           {(['ALL', 'OPEN', 'UPCOMING', 'CLOSING_SOON', 'CLOSED', 'DRAFT'] as const).map((status) => (
             <button
               key={status}
-              onClick={() => setFilter(status)}
+              aria-pressed={filter === status}
+              onClick={() => { captureLayout(); setFilter(status) }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
                 filter === status
                   ? 'bg-nice-blue-500 text-white shadow-subtle'
@@ -51,7 +56,8 @@ export function SessionList({ sessions }: SessionListProps) {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { captureLayout(); setSearch(e.target.value) }}
+            aria-label="Search sessions by title or location"
             placeholder="Search sessions…"
             className="w-full pl-9 pr-3.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-nice-blue-500/20 focus:border-nice-blue-500"
           />
@@ -60,11 +66,11 @@ export function SessionList({ sessions }: SessionListProps) {
 
       {/* Grid or Empty State */}
       {filteredSessions.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StaggerReveal className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSessions.map((session) => (
             <SessionCard key={session.id} session={session} />
           ))}
-        </div>
+        </StaggerReveal>
       ) : (
         <div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center flex flex-col items-center justify-center">
           <div className="w-12 h-12 rounded-2xl bg-nice-blue-50 border border-nice-blue-100 flex items-center justify-center text-nice-blue-600 mb-3">

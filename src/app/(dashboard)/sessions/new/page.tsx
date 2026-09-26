@@ -8,6 +8,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Input } from '../../../../components/ui/Input'
 import { Button } from '../../../../components/ui/Button'
 import { SessionType, DuplicatePolicy } from '../../../../types/session'
+import { StepTransition } from '../../../../motion/gsap/StepTransition'
+import { TextReveal } from '../../../../motion/gsap/TextReveal'
 
 function getKigaliDate(): string {
   const parts = new Intl.DateTimeFormat('en', {
@@ -20,6 +22,12 @@ function getKigaliDate(): string {
 export default function NewSessionPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
+  const [stepDirection, setStepDirection] = useState<1 | -1>(1)
+  const goToStep = (nextStep: number) => {
+    if (nextStep === step) return
+    setStepDirection(nextStep > step ? 1 : -1)
+    setStep(nextStep)
+  }
 
   // Step 1: Basic Info
   const [title, setTitle] = useState('')
@@ -87,7 +95,7 @@ export default function NewSessionPage() {
           </button>
         </Link>
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Create New Session</h1>
+          <TextReveal className="text-xl sm:text-2xl font-bold text-slate-900">Create New Session</TextReveal>
           <p className="text-xs text-slate-500">Configure event details and attendance check-in window.</p>
         </div>
       </div>
@@ -97,7 +105,7 @@ export default function NewSessionPage() {
         {steps.map((s) => (
           <button
             key={s.num}
-            onClick={() => setStep(s.num)}
+            onClick={() => goToStep(s.num)}
             className={`p-3 rounded-xl border text-left transition-all ${
               step === s.num
                 ? 'bg-nice-blue-50/80 border-nice-blue-400 text-nice-blue-900 shadow-subtle'
@@ -118,6 +126,7 @@ export default function NewSessionPage() {
       {/* Step Form Cards */}
       <Card className="shadow-elevated border-slate-200">
         <CardContent className="p-6 sm:p-8">
+          <StepTransition step={step} direction={stepDirection}>
           {step === 1 && (
             <div className="space-y-4">
               <CardTitle className="text-lg">Step 1 — Basic Information</CardTitle>
@@ -165,7 +174,7 @@ export default function NewSessionPage() {
               </div>
 
               <div className="flex justify-end pt-4">
-                <Button variant="primary" onClick={() => setStep(2)}>
+                <Button variant="primary" onClick={() => goToStep(2)}>
                   Continue to Location →
                 </Button>
               </div>
@@ -200,10 +209,10 @@ export default function NewSessionPage() {
               </div>
 
               <div className="flex justify-between pt-4">
-                <Button variant="outline" onClick={() => setStep(1)}>
+                <Button variant="outline" onClick={() => goToStep(1)}>
                   ← Back
                 </Button>
-                <Button variant="primary" onClick={() => setStep(3)}>
+                <Button variant="primary" onClick={() => goToStep(3)}>
                   Continue to Schedule →
                 </Button>
               </div>
@@ -263,10 +272,10 @@ export default function NewSessionPage() {
               </div>
 
               <div className="flex justify-between pt-4">
-                <Button variant="outline" onClick={() => setStep(2)}>
+                <Button variant="outline" onClick={() => goToStep(2)}>
                   ← Back
                 </Button>
-                <Button variant="primary" onClick={() => setStep(4)}>
+                <Button variant="primary" onClick={() => goToStep(4)}>
                   Review & Publish →
                 </Button>
               </div>
@@ -320,7 +329,7 @@ export default function NewSessionPage() {
 
               {submitError && <p role="alert" className="text-sm text-rose-700">{submitError}</p>}
               <div className="flex justify-between pt-4 border-t border-slate-100">
-                <Button variant="outline" onClick={() => setStep(3)}>
+                <Button variant="outline" onClick={() => goToStep(3)}>
                   ← Back
                 </Button>
                 <Button
@@ -335,6 +344,7 @@ export default function NewSessionPage() {
               </div>
             </div>
           )}
+          </StepTransition>
         </CardContent>
       </Card>
     </div>
