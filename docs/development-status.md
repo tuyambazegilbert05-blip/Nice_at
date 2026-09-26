@@ -25,6 +25,10 @@
 - Email rendering uses the NiCE animated brand GIF, blue/emerald identity, and a professional footer. Email clients may choose to display a still frame.
 - Validation: `npm run type-check`, `npm run lint`, and `npm run db:migrate` pass. No real emails were sent. Never place `BREVO_API_KEY` in a `NEXT_PUBLIC_*` variable or commit it.
 
+## Login Usability Update — 2026-09-26
+
+- Added an accessible eye toggle to show or hide the password and immediate pending feedback on sign-in; authentication still waits for server confirmation.
+
 ---
 
 ## Phase Tracker
