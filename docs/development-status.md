@@ -29,6 +29,12 @@
 
 - Added an accessible eye toggle to show or hide the password and immediate pending feedback on sign-in; authentication still waits for server confirmation.
 
+## Staff Invitation Acceptance Update — 2026-09-26
+
+- Fixed the invite acceptance route directory so emailed `/invite/{token}` links resolve in Next.js.
+- The invitation page now checks that its one-time link is valid, shows the invited email and assigned role, and lets the invitee provide their full name and set a password of at least 14 characters.
+- The accept API returns invitation details only for an active, unexpired token; account activation still hashes the password and consumes the invite transactionally.
+
 ---
 
 ## Phase 10 Analytics — COMPLETE (2026-09-26)

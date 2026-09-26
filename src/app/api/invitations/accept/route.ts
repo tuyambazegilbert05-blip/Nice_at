@@ -1,7 +1,23 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { withTransaction } from '../../../../lib/database/client'
+import { query, withTransaction } from '../../../../lib/database/client'
 import { hashPassword } from '../../../../lib/auth/passwords'
+
+export async function GET(request: NextRequest) {
+  const token = request.nextUrl.searchParams.get('token')?.trim()
+  if (!token) return NextResponse.json({ success: false, error: 'Invitation token is missing.' }, { status: 400 })
+
+  const tokenHash = createHash('sha256').update(token).digest('hex')
+  const result = await query<{ email: string; role: string; name: string | null }>(
+    `SELECT email,role,name FROM user_invitations
+     WHERE token_hash=$1 AND accepted_at IS NULL AND expires_at > now()`, [tokenHash],
+  )
+  const invitation = result.rows[0]
+  if (!invitation) {
+    return NextResponse.json({ success: false, error: 'This invitation is invalid, expired, or already used.' }, { status: 404 })
+  }
+  return NextResponse.json({ success: true, data: invitation })
+}
 
 export async function POST(request: NextRequest) {
   try {
