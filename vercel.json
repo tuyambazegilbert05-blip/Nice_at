@@ -3,19 +3,7 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "regions": ["fra1"],
-  "rewrites": [
-    {
-      "source": "/login",
-      "destination": "/(auth)/login"
-    },
-    {
-      "source": "/dashboard",
-      "destination": "/(dashboard)/dashboard"
-    },
-    {
-      "source": "/attend/:token",
-      "destination": "/attend/:token"
-    }
+  "regions": [
+    "fra1"
   ]
 }
