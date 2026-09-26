@@ -11,6 +11,8 @@ import { ParticipantType } from '../../../types'
 import { formatDate, formatDateTime } from '../../../utils/date'
 import { LoadingSpinner } from '../../../lottie/loading'
 import { ErrorAlertAnimation } from '../../../lottie/errors'
+import { DoorReveal } from '../../../motion/gsap/DoorReveal'
+import { FormFieldsMotion, FormSectionReveal } from '../../../motion/gsap/FormMotion'
 
 type AttendanceState = 'open' | 'closing_soon' | 'scheduled' | 'not_opened' | 'closed' | 'expired'
 
@@ -190,6 +192,7 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
 
         {/* Session Overview Card */}
         {session && (
+        <DoorReveal className="w-full" delay={0.04}>
           <Card className="border-nice-blue-100 bg-white shadow-elevated overflow-hidden">
             <div className="h-1.5 w-full bg-gradient-to-r from-nice-blue-500 via-emerald-500 to-cyan-500" />
             <CardContent className="p-5 sm:p-6 space-y-3">
@@ -236,11 +239,14 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
               </div>
             </CardContent>
           </Card>
+        </DoorReveal>
         )}
 
         {session?.isOpen ? (
-        <Card className="border-slate-200 bg-white shadow-elevated">
+        <DoorReveal className="w-full" delay={0.14}>
+          <Card className="border-slate-200 bg-white shadow-elevated">
           <CardContent className="p-6 sm:p-8">
+            <FormFieldsMotion>
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5">
@@ -261,7 +267,7 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
               />
 
               {/* Section 1: Personal Info */}
-              <div className="space-y-4">
+              <FormSectionReveal className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                   <span className="w-6 h-6 rounded-full bg-nice-blue-50 text-nice-blue-600 font-bold text-xs flex items-center justify-center">
                     1
@@ -301,10 +307,10 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                   <input type="checkbox" checked={emailUpdatesOptIn} onChange={(event) => setEmailUpdatesOptIn(event.target.checked)} className="mt-0.5 rounded border-slate-300 text-sky-700 focus:ring-sky-600" />
                   <span>I agree to receive occasional NiCE Club updates about future clean energy learning events. This is optional and does not affect my attendance registration.</span>
                 </label>
-              </div>
+              </FormSectionReveal>
 
               {/* Section 2: Academic & Participation */}
-              <div className="space-y-4 pt-2">
+              <FormSectionReveal className="space-y-4 pt-2">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                   <span className="w-6 h-6 rounded-full bg-nice-blue-50 text-nice-blue-600 font-bold text-xs flex items-center justify-center">
                     2
@@ -312,8 +318,8 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                   <h3 className="text-sm font-bold text-slate-800">Academic & Role Details</h3>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">
+                <div className="group/field space-y-1.5" data-form-field>
+                  <label className="block text-xs font-semibold text-slate-700 transition-colors group-focus-within/field:text-nice-blue-700">
                     Participant Type <span className="text-rose-500">*</span>
                   </label>
                   <select
@@ -354,10 +360,10 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                   onChange={(e) => setYearOfStudy(e.target.value)}
                   placeholder="e.g. Year 3 / Masters"
                 />
-              </div>
+              </FormSectionReveal>
 
               {/* Section 3: Reflection & Feedback */}
-              <div className="space-y-4 pt-2">
+              <FormSectionReveal className="space-y-4 pt-2">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                   <span className="w-6 h-6 rounded-full bg-nice-blue-50 text-nice-blue-600 font-bold text-xs flex items-center justify-center">
                     3
@@ -365,8 +371,8 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                   <h3 className="text-sm font-bold text-slate-800">Reflection & Insights</h3>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">
+                <div className="group/field space-y-1.5" data-form-field>
+                  <label className="block text-xs font-semibold text-slate-700 transition-colors group-focus-within/field:text-nice-blue-700">
                     What is your key takeaway or question today?
                   </label>
                   <textarea
@@ -378,8 +384,8 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">
+                <div className="group/field space-y-1.5" data-form-field>
+                  <label className="block text-xs font-semibold text-slate-700 transition-colors group-focus-within/field:text-nice-blue-700">
                     Suggestions or feedback for NiCE Club?
                   </label>
                   <textarea
@@ -390,7 +396,7 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                     className="w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-nice-blue-500/20 focus:border-nice-blue-500"
                   />
                 </div>
-              </div>
+              </FormSectionReveal>
 
               {/* Sticky / Accessible Submit Action */}
               <div className="pt-4 border-t border-slate-100">
@@ -409,8 +415,10 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
                 </p>
               </div>
             </form>
+            </FormFieldsMotion>
           </CardContent>
         </Card>
+        </DoorReveal>
         ) : session ? (
           <Card className="border-amber-200 bg-white shadow-elevated">
             <CardContent className="p-6 sm:p-8 text-center space-y-3">

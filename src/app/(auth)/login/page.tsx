@@ -7,6 +7,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Input } from '../../../components/ui/Input'
 import { Button } from '../../../components/ui/Button'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
+import { DoorReveal } from '../../../motion/gsap/DoorReveal'
+import { FormFieldsMotion } from '../../../motion/gsap/FormMotion'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -53,6 +55,7 @@ export default function LoginPage() {
 
   return (
     <div className="space-y-4">
+      <DoorReveal>
       <Card className="shadow-elevated border-slate-200">
         <CardHeader className="text-center pb-4">
           <div className="w-16 h-16 mx-auto mb-3 flex items-center justify-center">
@@ -69,6 +72,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <FormFieldsMotion>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium animate-in fade-in duration-200">
@@ -86,9 +90,9 @@ export default function LoginPage() {
               placeholder="organizer@niceclub.rw"
             />
 
-            <div>
+            <div className="group/field space-y-1.5" data-form-field>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700">
+                <label className="block text-xs font-semibold text-slate-700 transition-colors group-focus-within/field:text-nice-blue-700">
                   Password
                 </label>
                 <Link
@@ -140,8 +144,10 @@ export default function LoginPage() {
               Authorized organizers and event staff only.
             </p>
           </form>
+          </FormFieldsMotion>
         </CardContent>
       </Card>
+      </DoorReveal>
 
     </div>
   )

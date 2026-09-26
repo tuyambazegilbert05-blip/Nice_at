@@ -61,6 +61,8 @@
 - See [motion guidelines](design/motion-guidelines.md) for client boundaries, lifecycle, integration, and usage rules.
 
 - The public check-in success page now uses a scoped 1.4-second GSAP timeline to sequence the card, brand, orbital illustration, success mark, message, and footer. Reduced-motion users see the same content without the choreography.
+- Added a reusable reduced-motion-aware `DoorReveal`: verified session and attendee form cards open after check-in verification, the staff sign-in card opens on page entry, and the dashboard surface opens after successful authentication. Dashboard route changes retain their short page transition.
+- Added `FormSectionReveal` and `FormFieldsMotion` to the public attendance form, with one-time scroll entrances for its three sections and a subtle focused-field lift. Wired the same focus feedback into staff sign-in. Lottie illustrations now use ScrollTrigger for their entrance while keeping their existing viewport-lazy loading and playback lifecycle.
 
 ## Phase 12 Lottie System — IN PROGRESS (2026-09-26)
 

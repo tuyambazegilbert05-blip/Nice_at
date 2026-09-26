@@ -8,13 +8,13 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, helperText, required, id, ...props }, ref) => {
+  ({ className, label, error, helperText, required, id, 'aria-invalid': ariaInvalid, ...props }, ref) => {
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined)
 
     return (
-      <div className="w-full space-y-1.5">
+      <div className="group/input w-full space-y-1.5" data-form-field>
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-semibold text-slate-700 tracking-wide">
+          <label htmlFor={inputId} className={`block text-xs font-semibold tracking-wide transition-colors ${error ? 'text-rose-700' : 'text-slate-700 group-focus-within/input:text-nice-blue-700'}`}>
             {label}
             {required && <span className="text-rose-500 ml-0.5">*</span>}
           </label>
@@ -23,6 +23,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           ref={ref}
           required={required}
+          aria-invalid={error ? true : ariaInvalid}
           className={cn(
             'w-full rounded-lg border bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-colors',
             'focus:outline-none focus:ring-2 focus:ring-nice-blue-500/20 focus:border-nice-blue-500',

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { DotLottie as DotLottiePlayer } from '@lottiefiles/dotlottie-react'
-import { gsap } from '../../motion/gsap'
+import { gsap, registerMotionPlugins } from '../../motion/gsap'
 import { useGSAP } from '../../motion/gsap/useGsap'
 import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
 
@@ -133,7 +133,25 @@ export function LottieIllustration({ name, label, className = 'h-24 w-24', loop 
 
   useGSAP(() => {
     if (!root.current || !motionAllowed) return
-    gsap.fromTo(root.current, { autoAlpha: 0, scale: 0.97 }, { autoAlpha: 1, scale: 1, duration: MOTION_DURATION.standard, ease: MOTION_EASE.enter })
+    registerMotionPlugins()
+    const element = root.current
+    const media = gsap.matchMedia(element)
+    media.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.fromTo(element,
+        { autoAlpha: 0, y: 8, scale: 0.96 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          scale: 1,
+          duration: MOTION_DURATION.standard,
+          ease: MOTION_EASE.enter,
+          clearProps: 'transform,opacity,visibility',
+          scrollTrigger: { trigger: element, start: 'top 96%', once: true },
+        },
+      )
+    })
+    media.add('(prefers-reduced-motion: reduce)', () => gsap.set(element, { clearProps: 'all' }))
+    return () => media.revert()
   }, { dependencies: [motionAllowed], revertOnUpdate: true })
 
   return (

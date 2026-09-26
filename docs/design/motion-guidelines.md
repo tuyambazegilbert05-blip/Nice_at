@@ -16,6 +16,8 @@ Import durations, easings, and responsive motion profiles from `src/motion/gsap/
 ## Reusable systems
 
 - `PageTransition`, `ScrollReveal`, and `StaggerReveal` cover lightweight entrances.
+- `DoorReveal` gives important cards and the first dashboard view a single, short perspective opening after authentication or attendance-session verification; mobile uses a smaller turn and reduced-motion users get an immediate panel.
+- `FormSectionReveal` uses one-time ScrollTrigger entrances for long forms, so each section arrives as it enters view instead of the whole form animating at once. `FormFieldsMotion` adds a tiny focus lift to text fields and a matching label color cue; native focus, validation, and keyboard behavior remain in control.
 - Dashboard KPI groups stagger in on entry; the navigation marker moves between active routes; session cards use a subtle pointer tilt on fine pointers; filtering uses FLIP for movement and enter/exit states; analytics time-series paths draw on entry or data refresh.
 - `ButtonFeedback` delegates one immediate press/release acknowledgement across native buttons, role buttons, and submit inputs. Async actions should still expose their own truthful pending state; press feedback is not a substitute for server confirmation.
 - `StepTransition` handles directional multi-step form changes.
@@ -39,7 +41,7 @@ Import durations, easings, and responsive motion profiles from `src/motion/gsap/
 
 GSAP may animate the Lottie wrapper’s position, scale, opacity, and timing; DotLottie owns its internal vector frames. GSAP may control Three.js object properties and progress; Three.js owns rendering and GPU resources. Never have both systems drive the same property.
 
-Lottie illustrations keep a static SVG underneath the player, defer their small JSON request until visible, and pause offscreen or in a hidden tab. Three.js remains a progressive enhancement: use `EnergyObjectLoader` to get reduced-motion, low-capability, setup-failure, and runtime WebGL-loss fallback behavior. See [experience renderer architecture](../architecture/experience-renderers.md) for the lifecycle rules and current validation boundary.
+Lottie illustrations keep a static SVG underneath the player, defer their small JSON request until visible, reveal with GSAP as they enter the viewport, and pause offscreen or in a hidden tab. Three.js remains a progressive enhancement: use `EnergyObjectLoader` to get reduced-motion, low-capability, setup-failure, and runtime WebGL-loss fallback behavior. See [experience renderer architecture](../architecture/experience-renderers.md) for the lifecycle rules and current validation boundary.
 
 ## Current boundaries
 
