@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import type { DotLottie as DotLottiePlayer } from '@lottiefiles/dotlottie-react'
 import { gsap } from '../../motion/gsap'
 import { useGSAP } from '../../motion/gsap/useGsap'
 import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
@@ -12,6 +13,28 @@ const DotLottie = dynamic(
 )
 
 export type LottieState = 'success' | 'loading' | 'empty' | 'error'
+
+type LottieDocument = Record<string, unknown> & {
+  v?: unknown
+  w?: unknown
+  h?: unknown
+  ip?: unknown
+  op?: unknown
+  fr?: unknown
+  layers?: unknown
+}
+
+function isLottieDocument(value: unknown): value is LottieDocument {
+  if (!value || typeof value !== 'object') return false
+  const document = value as LottieDocument
+  return typeof document.v === 'string'
+    && Number.isFinite(document.w) && Number(document.w) > 0
+    && Number.isFinite(document.h) && Number(document.h) > 0
+    && Number.isFinite(document.ip) && Number.isFinite(document.op)
+    && Number(document.op) > Number(document.ip)
+    && Number.isFinite(document.fr) && Number(document.fr) > 0
+    && Array.isArray(document.layers)
+}
 
 const ASSET: Record<LottieState, string> = {
   success: '/lottie/success.json',
@@ -34,8 +57,10 @@ export function LottieIllustration({ name, label, className = 'h-24 w-24', loop 
   loop?: boolean
 }) {
   const root = useRef<HTMLDivElement>(null)
+  const [player, setPlayer] = useState<DotLottiePlayer | null>(null)
   const [motionAllowed, setMotionAllowed] = useState(false)
-  const [animationData, setAnimationData] = useState<Record<string, unknown> | null>(null)
+  const [inViewport, setInViewport] = useState(false)
+  const [loadedAnimation, setLoadedAnimation] = useState<{ name: LottieState; data: Record<string, unknown> } | null>(null)
 
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -46,28 +71,65 @@ export function LottieIllustration({ name, label, className = 'h-24 w-24', loop 
   }, [])
 
   useEffect(() => {
-    if (!motionAllowed) {
-      setAnimationData(null)
-      return
-    }
+    const element = root.current
+    if (!element) return
+    if (typeof IntersectionObserver === 'undefined') return
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setInViewport(entry.isIntersecting)
+    }, { threshold: 0.01 })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!motionAllowed || !inViewport || loadedAnimation?.name === name) return
 
     const controller = new AbortController()
-    setAnimationData(null)
 
     fetch(ASSET[name], { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`Animation asset returned ${response.status}`)
-        return response.json() as Promise<Record<string, unknown>>
+        return response.json() as Promise<unknown>
       })
       .then((data) => {
-        if (!controller.signal.aborted) setAnimationData(data)
+        if (!controller.signal.aborted && isLottieDocument(data)) {
+          setLoadedAnimation({ name, data })
+        }
       })
       .catch(() => {
         // Keep the inline SVG fallback visible for missing assets and canceled requests.
       })
 
     return () => controller.abort()
-  }, [motionAllowed, name])
+  }, [inViewport, loadedAnimation, motionAllowed, name])
+
+  const animationData = loadedAnimation?.name === name ? loadedAnimation.data : null
+
+  useEffect(() => {
+    if (!motionAllowed || !inViewport || !animationData) {
+      player?.pause()
+      return
+    }
+
+    const updatePlayback = () => {
+      if (document.visibilityState === 'visible' && inViewport) {
+        if (player?.isLoaded) player.play()
+      } else {
+        player?.pause()
+      }
+    }
+    player?.addEventListener('load', updatePlayback)
+    player?.addEventListener('ready', updatePlayback)
+    document.addEventListener('visibilitychange', updatePlayback)
+    updatePlayback()
+    return () => {
+      player?.removeEventListener('load', updatePlayback)
+      player?.removeEventListener('ready', updatePlayback)
+      document.removeEventListener('visibilitychange', updatePlayback)
+      player?.pause()
+    }
+  }, [animationData, inViewport, motionAllowed, player])
 
   useGSAP(() => {
     if (!root.current || !motionAllowed) return
@@ -77,7 +139,7 @@ export function LottieIllustration({ name, label, className = 'h-24 w-24', loop 
   return (
     <div ref={root} className={`relative ${className}`} role="img" aria-label={label}>
       <div className="absolute inset-0"><StaticFallback name={name} /></div>
-      {motionAllowed && animationData && <div className="absolute inset-0" aria-hidden="true"><DotLottie data={animationData} autoplay loop={loop ?? name === 'loading'} className="h-full w-full" /></div>}
+      {motionAllowed && inViewport && animationData && <div className="absolute inset-0" aria-hidden="true"><DotLottie data={JSON.stringify(animationData)} autoplay={false} loop={loop ?? name === 'loading'} dotLottieRefCallback={setPlayer} className="h-full w-full" /></div>}
     </div>
   )
 }

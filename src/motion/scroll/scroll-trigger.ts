@@ -1,4 +1,4 @@
-import { gsap, ScrollTrigger } from '../gsap'
+import { gsap, registerMotionPlugins, ScrollTrigger } from '../gsap'
 import { MOTION_BREAKPOINTS, MOTION_DURATION, MOTION_EASE, getMotionProfile } from '../gsap/config'
 
 export interface RevealOptions {
@@ -10,6 +10,7 @@ export interface RevealOptions {
 
 /** Desktop gets a single viewport reveal; mobile content remains immediately visible. */
 export function createScrollReveal(target: gsap.TweenTarget, scroller?: Element, options: RevealOptions = {}) {
+  registerMotionPlugins()
   const media = gsap.matchMedia()
   const profile = getMotionProfile({ reducedMotion: false, compact: false })
   media.add(`(prefers-reduced-motion: no-preference) and ${MOTION_BREAKPOINTS.desktop}`, () => gsap.fromTo(target,
@@ -25,6 +26,7 @@ export function createScrollReveal(target: gsap.TweenTarget, scroller?: Element,
 }
 
 export function createStaggerReveal(targets: gsap.TweenTarget, trigger: Element, scroller?: Element, options: RevealOptions & { stagger?: number } = {}) {
+  registerMotionPlugins()
   const media = gsap.matchMedia()
   const profile = getMotionProfile({ reducedMotion: false, compact: false })
   media.add(`(prefers-reduced-motion: no-preference) and ${MOTION_BREAKPOINTS.desktop}`, () => gsap.fromTo(targets,
@@ -40,6 +42,7 @@ export function createStaggerReveal(targets: gsap.TweenTarget, trigger: Element,
 }
 
 export function createScrollProgress(target: Element, onProgress: (progress: number) => void, scroller?: Element) {
+  registerMotionPlugins()
   if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return () => undefined
   const trigger = ScrollTrigger.create({ trigger: target, scroller, start: 'top bottom', end: 'bottom top', onUpdate: (self) => onProgress(self.progress) })
   return () => trigger.kill()

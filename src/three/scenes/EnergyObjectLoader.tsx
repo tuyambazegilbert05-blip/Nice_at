@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { EnergyObjectFallback } from '../components/EnergyObjectFallback'
 import { supportsWebGL } from '../core'
 
@@ -12,14 +12,15 @@ export function EnergyObjectLoader({ label = 'NiCE nuclear energy orbital motif'
 }) {
   const root = useRef<HTMLDivElement>(null)
   const [Scene, setScene] = useState<EnergyObjectComponent | null>(null)
+  const handleUnavailable = useCallback(() => setScene(null), [])
 
   useEffect(() => {
     const element = root.current
     if (!element) return
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const lowCapability = navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4
+    const lowCapability = navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 2
     const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
-    if (lowCapability || (memory !== undefined && memory <= 4) || typeof IntersectionObserver === 'undefined' || typeof ResizeObserver === 'undefined') return
+    if (lowCapability || (memory !== undefined && memory <= 2) || typeof IntersectionObserver === 'undefined' || typeof ResizeObserver === 'undefined') return
 
     let active = true
     let loaded = false
@@ -56,7 +57,7 @@ export function EnergyObjectLoader({ label = 'NiCE nuclear energy orbital motif'
   return (
     <div ref={root} className={`relative inline-flex items-center justify-center ${className}`} role="img" aria-label={label}>
       <EnergyObjectFallback className="absolute inset-0 h-full w-full" />
-      {Scene && <Scene className="absolute inset-0 h-full w-full" />}
+      {Scene && <Scene className="absolute inset-0 h-full w-full" onUnavailable={handleUnavailable} />}
     </div>
   )
 }

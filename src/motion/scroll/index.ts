@@ -1,2 +1,6 @@
 export { createScrollProgress, createScrollReveal, createStaggerReveal } from './scroll-trigger'
 export { createParallax } from './parallax'
+export { createPinnedStory } from './pinned'
+export type { PinnedStoryOptions } from './pinned'
+export { createHorizontalScroll } from './horizontal'
+export type { HorizontalScrollOptions } from './horizontal'

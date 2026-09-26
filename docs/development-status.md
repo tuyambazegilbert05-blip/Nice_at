@@ -50,23 +50,36 @@
 - Reused the installed GSAP 3.15 and `@gsap/react` setup. One registry configures ScrollTrigger, Flip, Observer, MotionPathPlugin, and SplitText, plus shared durations, easing tokens, and a development debug flag.
 - Added responsive motion profiles, reduced-motion hook, cleanup-aware page/scroll/stagger primitives, directional wizard transitions, selective word reveal, and a shared FLIP hook used by analytics filters.
 - Made the motion visible in core workflows: dashboard sections and KPI cards enter in sequence; the active sidebar marker glides between routes; session cards respond to desktop pointer position with a restrained 3D tilt; session filters animate exiting, entering, and reflowing cards; the analytics time series draws its line and points.
+- Added a root-level delegated GSAP press acknowledgement for every native button, shared Button, role=button control, and submit input. Pointer and keyboard activation respond immediately; reduced motion skips the press choreography. Async submit flows retain their existing explicit pending labels and disabled states.
 - Animated the session-creation steps, its heading, mobile navigation drawer, shared modal open/close, dashboard page entrances, analytics counters/bars, and the existing Lottie wrapper. The modal retains Escape/backdrop close and traps/restores keyboard focus.
 - Added reusable hover/press/gesture helpers, SVG stroke drawing without DrawSVG, desktop-only parallax and scroll progress helpers, and a MotionPath helper now used by the existing Three.js energy object.
 - Added focused Node unit tests for motion tokens and responsive/reduced-motion profiles. No extra animation package was needed.
-- Route navigation remains immediate with a short page-enter motion; route-exit blocking, pinned public stories, and horizontal storytelling are intentionally not mounted because those flows are absent. Browser/device, Safari/Firefox, and screen-reader checks remain outstanding; Phase 11 stays in progress pending that review and full validation.
+- Added reusable pinned-story and horizontal-scroll abstractions with desktop ScrollTrigger choreography, progress callbacks, reduced-motion handling, and mobile flow fallbacks.
+- Added an opt-in route-exit link and used it in sidebar navigation; added collapsible Operations and Workspace sidebar sections with animated expansion.
+- Independent validation on 2026-09-26: Node.js 22.23.2; `npm run type-check`, `npm run lint`, `npm run test:motion` (3 tests), and `npm run build` pass. This confirms type safety and production compilation, not browser/device behavior.
+- The project owner confirms the wired motion works in the current product. Browser/device and screen-reader reviews remain unperformed; the motion unit tests cover tokens/profiles rather than rendered interactions. Phase 11 stays in progress until runtime interaction validation is complete.
 - See [motion guidelines](design/motion-guidelines.md) for client boundaries, lifecycle, integration, and usage rules.
+
+- The public check-in success page now uses a scoped 1.4-second GSAP timeline to sequence the card, brand, orbital illustration, success mark, message, and footer. Reduced-motion users see the same content without the choreography.
 
 ## Phase 12 Lottie System — IN PROGRESS (2026-09-26)
 
 - Added lazy-loaded LottieFiles React playback and NiCE-colored success, loading, empty, and error animations.
 - Added static SVG fallbacks that remain available when motion is reduced or playback cannot load. Integrated success and check-in verification states, plus analytics empty/error states.
+- The shared player now waits until it enters the viewport before fetching its JSON, validates the Lottie document shape before creating a player, pauses when the tab is hidden or the illustration leaves view, and resumes when visible. Aborted fetches and invalid/missing files retain the SVG fallback without surfacing cancellation errors.
+- GSAP choreographs the success-screen entrance and Lottie wrapper; DotLottie owns its vector-frame playback. The renderers animate separate properties, with a reduced-motion fallback.
+- Enlarged the check-in success mark to an 80px overlay so its two-second orbit/check animation reads clearly on the success confirmation.
+- Remaining validation: visually inspect all four states in desktop/mobile browsers and confirm one-shot success/error playback timing with product owners.
 
 ## Phase 13 Three.js Experience Layer — IN PROGRESS (2026-09-26)
 
 - Added a reusable Three.js core for WebGL capability checks, adaptive renderer/camera setup, orbit rings, nucleus/particles, and GSAP pulse/motion-path choreography.
 - Added a lazy NiCE Energy Object on the attendance success state. It defers loading until visible, uses a static SVG fallback for reduced-motion/low-capability environments, caps device pixel ratio, pauses off-screen/hidden rendering, and disposes GPU resources on unmount.
+- Hardened scene startup and teardown: renderer/observer setup failures dispose partially-created GPU resources and return to the SVG motif; runtime WebGL context loss/render errors also switch back to the static illustration. GSAP timelines are explicitly killed as part of cleanup.
+- Enlarged the success-screen orbital scene to 176px and shortened its full orbit rotation from about 42 seconds to about 20 seconds. Capability fallback now targets very-low-end devices (2 CPU cores or 2GB memory) so more phones can use the small scene.
 - No educational reactor/fission simulation has been added; scientific claims and visualization accuracy need review before that public experience is built.
-- Phase 11–13 remain in progress pending browser/device review and integration polish.
+- Validation on 2026-09-26 with Node.js 22.23.2: `npx tsc --noEmit --incremental false`, `npm run lint`, `git diff --check`, and `npm run build` pass. The build compiled and generated all 29 routes; it reports the existing Next.js middleware-to-proxy deprecation warning.
+- Remaining validation: exercise context loss and WebGL-disabled fallback, inspect runtime frame rate and visual quality on iOS Safari/Android Chrome, and review accessible naming with screen readers. Phases 12–13 stay in progress until those runtime checks are complete.
 
 ---
 
@@ -84,7 +97,7 @@
 | **Phase 08** | QR System (Vector SVG, PNG, Branded Poster) | Pending | - |
 | **Phase 09** | Attendee Management (Table, Search, Filter, Details, Export) | Pending | - |
 | **Phase 10** | Analytics (Real-time aggregations, Academic distributions) | **DONE** | Complete (build, live database queries, and filters verified 2026-09-26) |
-| **Phase 11** | GSAP Experience Engine (Motion primitives, FLIP, Transitions) | **In Progress** | - |
+| **Phase 11** | GSAP Experience Engine (Motion primitives, FLIP, Transitions) | **In Progress** | Complete after remaining motion utilities and browser/device validation |
 | **Phase 12** | Lottie System (Semantic vector illustrations) | **In Progress** | - |
 | **Phase 13** | Three.js Experience Layer (NiCE Energy Object, Fallback) | **In Progress** | - |
 | **Phase 14** | Integration Architecture (Ecosystem compatibility) | Pending | - |
