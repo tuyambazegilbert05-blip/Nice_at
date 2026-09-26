@@ -22,8 +22,9 @@ function createPool(): Pool {
   }
 
   const ssl = process.env.DATABASE_SSL === 'true' || (!process.env.DATABASE_SSL && isRemoteDatabase)
+  const inlineCa = process.env.DATABASE_SSL_CA?.replaceAll('\\n', '\n')
   const sslCaFile = process.env.DATABASE_SSL_CA_FILE
-  const ca = sslCaFile ? readFileSync(resolve(sslCaFile), 'utf8') : undefined
+  const ca = inlineCa || (sslCaFile ? readFileSync(resolve(sslCaFile), 'utf8') : undefined)
   return new Pool({
     connectionString,
     max: Number(process.env.DATABASE_POOL_MAX || 10),
