@@ -12,6 +12,7 @@ import { FormFieldsMotion } from '../../../motion/gsap/FormMotion'
 import { useGSAP } from '../../../motion/gsap/useGsap'
 import { gsap } from '../../../motion/gsap'
 import { LottieIllustration } from '../../../lottie/shared/LottieIllustration'
+import { EnergyObjectFallback } from '../../../three/components/EnergyObjectFallback'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -28,6 +29,13 @@ export default function LoginPage() {
       if (rings?.length) {
         timeline.fromTo(rings, { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 1, scale: 1, duration: 0.55, stagger: 0.1 }, '<0.2')
         gsap.to(rings, { rotation: 360, duration: 24, repeat: -1, ease: 'none', stagger: 1.5 })
+      }
+      const orbital = atmosphere.current?.querySelector('[data-auth-orbital]')
+      const spark = atmosphere.current?.querySelector('[data-auth-spark]')
+      if (orbital && spark) {
+        gsap.fromTo(orbital, { autoAlpha: 0, scale: 0.82, y: 10 }, { autoAlpha: 1, scale: 1, y: 0, duration: 0.7, delay: 0.18, ease: 'back.out(1.5)' })
+        gsap.to(orbital, { y: -5, duration: 2.8, repeat: -1, yoyo: true, ease: 'sine.inOut' })
+        gsap.to(spark, { scale: 1.14, autoAlpha: 0.55, duration: 1.7, repeat: -1, yoyo: true, ease: 'sine.inOut' })
       }
     })
     media.add('(prefers-reduced-motion: reduce)', () => gsap.set([logo.current, atmosphere.current], { clearProps: 'all' }))
@@ -87,13 +95,18 @@ export default function LoginPage() {
               className="w-16 h-16 object-contain"
             />
           </div>
-          <div className="relative mx-auto mb-4 mt-2 flex h-24 w-48 items-center justify-center overflow-hidden rounded-full bg-slate-50/80" aria-hidden="true">
-            <div data-auth-ring className="absolute size-20 rounded-full border border-nice-blue-200/70" />
-            <div data-auth-ring className="absolute size-14 rounded-full border border-emerald-200/80" />
-            <div data-auth-ring className="absolute size-9 rounded-full bg-nice-blue-100/60 blur-xl" />
-            <div ref={logo} className="relative rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm">
-              <LottieIllustration name="loading" label="NiCE energy emblem" className="size-7" loop />
+          <div className="relative mx-auto mb-4 mt-2 flex h-28 w-full max-w-xs items-center justify-center overflow-hidden rounded-3xl border border-nice-blue-100/80 bg-gradient-to-br from-sky-50 via-white to-emerald-50/70 shadow-inner" aria-hidden="true">
+            <div data-auth-orbital className="relative flex size-24 items-center justify-center">
+              <EnergyObjectFallback className="absolute inset-0 size-full opacity-80" />
+              <div data-auth-ring className="absolute size-16 rounded-full border border-nice-blue-200/70" />
+              <div data-auth-ring className="absolute size-11 rounded-full border border-emerald-200/80" />
+              <div data-auth-ring className="absolute size-7 rounded-full bg-nice-blue-100/70 blur-lg" />
+              <div ref={logo} className="relative rounded-full bg-white/95 p-1.5 shadow-md backdrop-blur-sm">
+                <LottieIllustration name="loading" label="NiCE energy emblem" className="size-8" loop />
+              </div>
+              <span data-auth-spark className="absolute -right-1 top-4 size-2 rounded-full bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.8)]" />
             </div>
+            <span className="absolute bottom-2 left-0 right-0 text-center text-[9px] font-semibold uppercase tracking-[0.24em] text-slate-400">Science · Energy · People</span>
           </div>
           <CardTitle className="text-xl font-bold">Staff Sign In</CardTitle>
           <CardDescription>
