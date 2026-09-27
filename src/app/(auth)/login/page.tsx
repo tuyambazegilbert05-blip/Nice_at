@@ -87,12 +87,12 @@ export default function LoginPage() {
               className="w-16 h-16 object-contain"
             />
           </div>
-          <div className="relative mx-auto mb-4 flex h-28 w-48 items-center justify-center overflow-hidden rounded-full bg-slate-50/80" aria-hidden="true">
-            <div data-auth-ring className="absolute size-28 rounded-full border border-nice-blue-200/70" />
-            <div data-auth-ring className="absolute size-20 rounded-full border border-emerald-200/80" />
-            <div data-auth-ring className="absolute size-12 rounded-full bg-nice-blue-100/60 blur-xl" />
-            <div ref={logo} className="relative rounded-full bg-white/90 p-2 shadow-sm backdrop-blur-sm">
-              <LottieIllustration name="loading" label="NiCE energy emblem" className="size-10" loop />
+          <div className="relative mx-auto mb-4 mt-2 flex h-24 w-48 items-center justify-center overflow-hidden rounded-full bg-slate-50/80" aria-hidden="true">
+            <div data-auth-ring className="absolute size-20 rounded-full border border-nice-blue-200/70" />
+            <div data-auth-ring className="absolute size-14 rounded-full border border-emerald-200/80" />
+            <div data-auth-ring className="absolute size-9 rounded-full bg-nice-blue-100/60 blur-xl" />
+            <div ref={logo} className="relative rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm">
+              <LottieIllustration name="loading" label="NiCE energy emblem" className="size-7" loop />
             </div>
           </div>
           <CardTitle className="text-xl font-bold">Staff Sign In</CardTitle>
