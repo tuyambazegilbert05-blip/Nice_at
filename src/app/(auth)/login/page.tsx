@@ -76,14 +76,6 @@ export default function LoginPage() {
 
   return (
     <div ref={atmosphere} className="relative space-y-4">
-      <div className="pointer-events-none absolute -inset-x-10 -top-24 hidden h-48 items-center justify-center sm:flex" aria-hidden="true">
-        <div data-auth-ring className="absolute size-40 rounded-full border border-nice-blue-200/70" />
-        <div data-auth-ring className="absolute size-28 rounded-full border border-emerald-200/80" />
-        <div data-auth-ring className="absolute size-16 rounded-full bg-nice-blue-100/60 blur-xl" />
-        <div ref={logo} className="relative rounded-full bg-white/80 p-2 shadow-sm backdrop-blur-sm">
-          <LottieIllustration name="loading" label="NiCE energy emblem" className="size-14" loop />
-        </div>
-      </div>
       <DoorReveal>
       <Card className="shadow-elevated border-slate-200">
         <CardHeader className="text-center pb-4">
@@ -94,6 +86,14 @@ export default function LoginPage() {
               alt="NiCE Club Rwanda"
               className="w-16 h-16 object-contain"
             />
+          </div>
+          <div className="relative mx-auto mb-4 flex h-28 w-48 items-center justify-center overflow-hidden rounded-full bg-slate-50/80" aria-hidden="true">
+            <div data-auth-ring className="absolute size-28 rounded-full border border-nice-blue-200/70" />
+            <div data-auth-ring className="absolute size-20 rounded-full border border-emerald-200/80" />
+            <div data-auth-ring className="absolute size-12 rounded-full bg-nice-blue-100/60 blur-xl" />
+            <div ref={logo} className="relative rounded-full bg-white/90 p-2 shadow-sm backdrop-blur-sm">
+              <LottieIllustration name="loading" label="NiCE energy emblem" className="size-10" loop />
+            </div>
           </div>
           <CardTitle className="text-xl font-bold">Staff Sign In</CardTitle>
           <CardDescription>
