@@ -53,8 +53,8 @@ export function UserMenu() {
         aria-label="User profile menu"
         className="flex items-center space-x-2.5 p-1.5 rounded-xl hover:bg-slate-100 transition-colors focus:outline-none"
       >
-        <div className="w-8 h-8 rounded-lg bg-nice-blue-100 border border-nice-blue-200 text-nice-blue-700 font-bold text-xs flex items-center justify-center">
-          {user ? formatInitials(user.name) : '…'}
+        <div className="w-8 h-8 rounded-lg bg-nice-blue-100 border border-nice-blue-200 text-nice-blue-700 font-bold text-xs flex items-center justify-center overflow-hidden">
+          {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : user ? formatInitials(user.name) : '…'}
         </div>
         <div className="hidden sm:block text-left">
           <p className="text-xs font-semibold text-slate-800 leading-none">{user?.name || 'Loading profile'}</p>
