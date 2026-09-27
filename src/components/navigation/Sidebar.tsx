@@ -20,7 +20,7 @@ export function Sidebar({ className = '', onClose }: SidebarProps) {
           <Link href="/dashboard" className="flex items-center space-x-2.5" onClick={onClose}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/NiCE-Logo-Animated.gif"
+              src="/brand/NiCE-Logo-Animated-transparent.webp"
               alt="NiCE Club Rwanda Logo"
               className="w-9 h-9 object-contain rounded-lg drop-shadow-sm"
             />

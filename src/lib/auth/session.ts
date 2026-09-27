@@ -42,8 +42,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
     const tokenUser = verifySessionToken(sessionCookie.value)
     if (!tokenUser) return null
-    const result = await query<{ id: string; name: string; email: string; role: UserRole }>(
-      'SELECT id, name, email, role FROM users WHERE id=$1 AND is_active=true', [tokenUser.id],
+    const result = await query<{ id: string; name: string; email: string; role: UserRole; avatarUrl: string | null }>(
+      'SELECT id, name, email, role, avatar_url AS "avatarUrl" FROM users WHERE id=$1 AND is_active=true', [tokenUser.id],
     )
     return result.rows[0] || null
   } catch {

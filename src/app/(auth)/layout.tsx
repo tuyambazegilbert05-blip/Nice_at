@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { Sparkles } from 'lucide-react'
+import Image from 'next/image'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,9 +10,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           href="/dashboard"
           className="flex items-center space-x-2 text-slate-500 hover:text-nice-blue-600 transition-colors text-xs font-semibold"
         >
-          <div className="w-7 h-7 rounded-lg bg-nice-blue-500 flex items-center justify-center text-white">
-            <Sparkles className="w-3.5 h-3.5" />
-          </div>
+          <Image
+            src="/brand/NiCE-Logo-Animated-transparent.webp"
+            alt="NiCE Club Rwanda logo"
+            width={32}
+            height={32}
+            className="w-8 h-8 object-contain rounded-lg"
+            priority
+          />
           <span className="font-bold text-slate-800">NiCE Club Rwanda</span>
         </Link>
       </div>

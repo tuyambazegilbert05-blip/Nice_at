@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Menu, Plus, Sparkles } from 'lucide-react'
+import Image from 'next/image'
+import { Menu, Plus } from 'lucide-react'
 import { UserMenu } from './UserMenu'
 import { Sidebar } from './Sidebar'
 import { gsap } from '../../motion/gsap'
@@ -59,12 +60,17 @@ export function Header() {
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center space-x-2 md:hidden">
-            <div className="w-8 h-8 rounded-lg bg-nice-blue-500 flex items-center justify-center text-white">
-              <Sparkles className="w-4 h-4" />
-            </div>
+          <Link href="/dashboard" className="flex items-center space-x-2 md:hidden" aria-label="NiCE Club dashboard">
+            <Image
+              src="/brand/NiCE-Logo-Animated-transparent.webp"
+              alt="NiCE Club Rwanda logo"
+              width={32}
+              height={32}
+              className="w-8 h-8 object-contain rounded-lg"
+              priority
+            />
             <span className="font-bold text-slate-900 text-sm tracking-tight">NiCE Club</span>
-          </div>
+          </Link>
 
           <div className="hidden md:flex items-center space-x-2">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
