@@ -14,7 +14,7 @@ PostgreSQL is the persistent source of truth for staff accounts and profiles, in
 
 ## Data model
 
-- `users`: normalized unique staff email, password hash, role, active state, and timestamps.
+- `users`: normalized unique staff email, password hash, role, active state, timestamps, and server-persisted onboarding state. Migration 010 marks pre-existing accounts complete while new accounts default to incomplete; migration 011 records whether the first tour was skipped or completed.
 - `users.avatar_url`: optional profile image link.
 - `sessions`: schedule, unique cryptographic public token, status, duplicate policy, creator, and temporary attendance-extension expiry.
 - `session_questions`: ordered form definitions for each session.

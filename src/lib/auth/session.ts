@@ -13,8 +13,8 @@ export { SESSION_COOKIE_NAME }
  */
 export async function authenticate(email: string, password: string): Promise<AuthUser | null> {
   const normalizedEmail = email.trim().toLowerCase()
-  const result = await query<{ id: string; name: string; email: string; role: UserRole; password_hash: string; is_active: boolean }>(
-    'SELECT id, name, email, role, password_hash, is_active FROM users WHERE email=$1',
+  const result = await query<{ id: string; name: string; email: string; role: UserRole; password_hash: string; is_active: boolean; has_completed_onboarding: boolean; onboarding_outcome: AuthUser['onboardingOutcome'] }>(
+    'SELECT id, name, email, role, password_hash, is_active, has_completed_onboarding, onboarding_outcome FROM users WHERE email=$1',
     [normalizedEmail],
   )
   const user = result.rows[0]
@@ -25,6 +25,8 @@ export async function authenticate(email: string, password: string): Promise<Aut
     name: user.name,
     email: user.email,
     role: user.role,
+    hasCompletedOnboarding: user.has_completed_onboarding,
+    onboardingOutcome: user.onboarding_outcome,
   }
 }
 
@@ -52,8 +54,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
     const tokenUser = verifySessionToken(sessionCookie.value)
     if (!tokenUser) return null
-    const result = await query<{ id: string; name: string; email: string; role: UserRole; avatarUrl: string | null }>(
-      'SELECT id, name, email, role, avatar_url AS "avatarUrl" FROM users WHERE id=$1 AND is_active=true', [tokenUser.id],
+    const result = await query<{ id: string; name: string; email: string; role: UserRole; avatarUrl: string | null; hasCompletedOnboarding: boolean; onboardingOutcome: AuthUser['onboardingOutcome'] }>(
+      'SELECT id, name, email, role, avatar_url AS "avatarUrl", has_completed_onboarding AS "hasCompletedOnboarding", onboarding_outcome AS "onboardingOutcome" FROM users WHERE id=$1 AND is_active=true', [tokenUser.id],
     )
     return result.rows[0] || null
   } catch {

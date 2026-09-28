@@ -1,4 +1,4 @@
-import { query } from '../database/client'
+import { withConnection } from '../database/client'
 import type {
   AnalyticsFilters,
   AnalyticsSessionOption,
@@ -94,8 +94,8 @@ export async function getGlobalAnalytics(filters: AnalyticsFilters = {}): Promis
   const values = filterValues(filters)
   const attendanceWhere = attendanceScope(filters)
   const sessionWhere = sessionScope(filters)
-  const [overviewResult, monthlyResult, yearlyResult, distributionResult, topResult, sessionsResult, optionResult] = await Promise.all([
-    query<OverviewRow>(`
+  const { overviewResult, monthlyResult, yearlyResult, distributionResult, topResult, sessionsResult, optionResult } = await withConnection(async (client) => {
+    const overviewResult = await client.query<OverviewRow>(`
       WITH scoped AS (
         SELECT a.email, a.session_id FROM attendance_records a JOIN sessions s ON s.id = a.session_id WHERE ${attendanceWhere}
       ), session_count AS (
@@ -117,8 +117,8 @@ export async function getGlobalAnalytics(filters: AnalyticsFilters = {}): Promis
         (SELECT count(*)::int FROM sessions s WHERE ${sessionWhere}
           AND s.status IN ('OPEN','CLOSING_SOON') AND now() BETWEEN s.attendance_opens AND s.attendance_closes
         ) AS active_sessions_count
-    `, values),
-    query<MonthlyRow>(`
+    `, values)
+    const monthlyResult = await client.query<MonthlyRow>(`
       WITH current_month AS (
         SELECT date_trunc('month', now() AT TIME ZONE 'Africa/Kigali') AS month_start
       ), months AS (
@@ -135,14 +135,14 @@ export async function getGlobalAnalytics(filters: AnalyticsFilters = {}): Promis
           AND s.session_date < (months.month_start + interval '1 month')::date
         ) AS sessions
       FROM months ORDER BY months.month_start
-    `, values),
-    query<YearRow>(`
+    `, values)
+    const yearlyResult = await client.query<YearRow>(`
       SELECT EXTRACT(YEAR FROM a.submitted_at AT TIME ZONE 'Africa/Kigali')::int AS year, count(*)::int AS attendees
       FROM attendance_records a JOIN sessions s ON s.id=a.session_id
       WHERE ${attendanceWhere}
       GROUP BY 1 ORDER BY year DESC
-    `, values),
-    query<DistributionRow>(`
+    `, values)
+    const distributionResult = await client.query<DistributionRow>(`
       SELECT category, label, count FROM (
         SELECT 'participantType'::text AS category, a.participant_type AS label, count(*)::int AS count
           FROM attendance_records a JOIN sessions s ON s.id=a.session_id WHERE ${attendanceWhere} GROUP BY a.participant_type
@@ -159,8 +159,8 @@ export async function getGlobalAnalytics(filters: AnalyticsFilters = {}): Promis
         SELECT 'sessionType', s.type, count(*)::int
           FROM attendance_records a JOIN sessions s ON s.id=a.session_id WHERE ${attendanceWhere} GROUP BY s.type
       ) distributions ORDER BY category, count DESC, label
-    `, values),
-    query<SessionRow>(`
+    `, values)
+    const topResult = await client.query<SessionRow>(`
       SELECT s.id, s.title, s.session_date::text AS date, s.status,
         count(a.id) FILTER (WHERE ${attendanceWhere})::int AS attendance
       FROM sessions s LEFT JOIN attendance_records a ON a.session_id=s.id
@@ -168,13 +168,13 @@ export async function getGlobalAnalytics(filters: AnalyticsFilters = {}): Promis
       GROUP BY s.id
       HAVING count(a.id) FILTER (WHERE ${attendanceWhere}) > 0
       ORDER BY attendance DESC, s.session_date DESC, s.title LIMIT 8
-    `, values),
-    query<SessionRow>(`
+    `, values)
+    const sessionsResult = await client.query<SessionRow>(`
       SELECT s.id, s.title, s.session_date::text AS date, s.status, count(a.id)::int AS attendance
       FROM sessions s LEFT JOIN attendance_records a ON a.session_id=s.id
       GROUP BY s.id ORDER BY s.session_date DESC, s.start_time DESC
-    `),
-    query<OptionRow>(`
+    `)
+    const optionResult = await client.query<OptionRow>(`
       SELECT category, label FROM (
         SELECT 'program'::text AS category, COALESCE(NULLIF(BTRIM(program), ''), 'Not provided') AS label
           FROM attendance_records GROUP BY 2
@@ -182,8 +182,9 @@ export async function getGlobalAnalytics(filters: AnalyticsFilters = {}): Promis
         SELECT 'year', COALESCE(NULLIF(BTRIM(year_of_study), ''), 'Not provided')
           FROM attendance_records GROUP BY 2
       ) options ORDER BY category, label
-    `),
-  ])
+    `)
+    return { overviewResult, monthlyResult, yearlyResult, distributionResult, topResult, sessionsResult, optionResult }
+  })
 
   const overview = overviewResult.rows[0]
   const totalSessions = Number(overview?.total_sessions || 0)
@@ -231,8 +232,8 @@ export async function getGlobalAnalytics(filters: AnalyticsFilters = {}): Promis
 }
 
 export async function getSessionAnalytics(sessionId: string): Promise<SessionAnalytics | null> {
-  const [sessionResult, distributionResult, timelineResult, reflectionsResult] = await Promise.all([
-    query<{
+  const { sessionResult, distributionResult, timelineResult, reflectionsResult } = await withConnection(async (client) => {
+    const sessionResult = await client.query<{
       id: string; title: string; session_date: string; status: string; location: string
       start_time: string; end_time: string; attendance_opens: string; attendance_closes: string
       duration_minutes: number | string; total_attendance: number | string; unique_attendees: number | string
@@ -251,8 +252,8 @@ export async function getSessionAnalytics(sessionId: string): Promise<SessionAna
         count(a.key_takeaway) FILTER (WHERE NULLIF(BTRIM(a.key_takeaway),'') IS NOT NULL)::int AS key_takeaway_count
       FROM sessions s LEFT JOIN attendance_records a ON a.session_id=s.id
       WHERE s.id=$1 GROUP BY s.id
-    `, [sessionId]),
-    query<DistributionRow & { category: 'participantType' | 'faculty' | 'program' | 'year' }>(`
+    `, [sessionId])
+    const distributionResult = await client.query<DistributionRow & { category: 'participantType' | 'faculty' | 'program' | 'year' }>(`
       SELECT category, label, count FROM (
         SELECT 'participantType'::text AS category, participant_type AS label, count(*)::int AS count FROM attendance_records WHERE session_id=$1 GROUP BY participant_type
         UNION ALL
@@ -262,18 +263,19 @@ export async function getSessionAnalytics(sessionId: string): Promise<SessionAna
         UNION ALL
         SELECT 'year', COALESCE(NULLIF(BTRIM(year_of_study), ''), 'Not provided'), count(*)::int FROM attendance_records WHERE session_id=$1 GROUP BY 2
       ) distributions ORDER BY category, count DESC, label
-    `, [sessionId]),
-    query<{ timestamp: string; count: number | string }>(`
+    `, [sessionId])
+    const timelineResult = await client.query<{ timestamp: string; count: number | string }>(`
       SELECT to_char(date_trunc('hour', submitted_at AT TIME ZONE 'Africa/Kigali'), 'YYYY-MM-DD HH24:00') AS timestamp,
         count(*)::int AS count FROM attendance_records WHERE session_id=$1
       GROUP BY 1 ORDER BY 1
-    `, [sessionId]),
-    query<{ key_takeaway: string | null; feedback: string | null; submitted_at: string }>(`
+    `, [sessionId])
+    const reflectionsResult = await client.query<{ key_takeaway: string | null; feedback: string | null; submitted_at: string }>(`
       SELECT key_takeaway, feedback, submitted_at::text AS submitted_at FROM attendance_records
       WHERE session_id=$1 AND (NULLIF(BTRIM(key_takeaway),'') IS NOT NULL OR NULLIF(BTRIM(feedback),'') IS NOT NULL)
       ORDER BY submitted_at DESC LIMIT 12
-    `, [sessionId]),
-  ])
+    `, [sessionId])
+    return { sessionResult, distributionResult, timelineResult, reflectionsResult }
+  })
 
   const session = sessionResult.rows[0]
   if (!session) return null

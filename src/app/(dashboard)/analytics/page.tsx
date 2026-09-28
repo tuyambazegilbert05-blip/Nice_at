@@ -15,6 +15,7 @@ import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
 import type { AnalyticsSessionOption, AnalyticsSessionSummary } from '../../../types/analytics'
+import { TourTarget } from '../../../components/onboarding/TourTarget'
 
 function monthLabel(month: string) {
   const date = new Date(`${month}-01T12:00:00Z`)
@@ -64,7 +65,7 @@ export default async function AnalyticsPage({ searchParams }: {
     : 0
 
   return (
-    <div className="space-y-5 pb-8">
+    <TourTarget name="platform-analytics" className="space-y-5 pb-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-nice-blue-700">NiCE Club Rwanda</p>
@@ -117,6 +118,6 @@ export default async function AnalyticsPage({ searchParams }: {
         {!analytics.overview.totalAttendees && <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-200 bg-white p-4"><EmptyStateAnimation label="No attendance records" className="h-12 w-12 shrink-0" /><p className="text-sm text-slate-600">No check-ins match these filters. Widen the date range or clear filters.</p></div>}
       </ScrollReveal>
       <p className="text-right text-[11px] text-slate-400">Live database aggregates · attendee contact details stay private</p>
-    </div>
+    </TourTarget>
   )
 }

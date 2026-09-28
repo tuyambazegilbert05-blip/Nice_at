@@ -64,6 +64,7 @@ async function runTests() {
     name: 'Gilbert Niyitegeka',
     email: 'admin@niceclub.rw',
     role: 'ADMIN',
+    hasCompletedOnboarding: false,
   }
   const token = createSessionToken(sampleUser, 3600)
   const decoded = verifySessionToken(token)

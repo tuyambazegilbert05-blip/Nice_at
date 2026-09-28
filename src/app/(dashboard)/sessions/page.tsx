@@ -8,6 +8,7 @@ import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
 import { RestrictedActionButton } from '../../../components/ui/RestrictedAction'
+import { TourTarget } from '../../../components/onboarding/TourTarget'
 
 export default async function SessionsPage() {
   const user = await getCurrentUser()
@@ -17,7 +18,7 @@ export default async function SessionsPage() {
   const canCreateSessions = hasPermission(user.role, 'session:create')
 
   return (
-    <div className="space-y-6">
+    <TourTarget name="platform-sessions" className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-3.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -43,6 +44,6 @@ export default async function SessionsPage() {
       </div>
 
       <SessionList sessions={sessions} canCreate={canCreateSessions} role={user.role} />
-    </div>
+    </TourTarget>
   )
 }

@@ -8,6 +8,7 @@ import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
 import { RestrictedActionButton } from '../../../components/ui/RestrictedAction'
+import { TourTarget } from '../../../components/onboarding/TourTarget'
 
 export default async function ParticipantsPage() {
   const user = await getCurrentUser()
@@ -28,7 +29,7 @@ export default async function ParticipantsPage() {
   }
   const directory = [...participants.values()].sort((a, b) => a.name.localeCompare(b.name))
   return (
-    <div className="space-y-6">
+    <TourTarget name="platform-participants" className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
@@ -89,6 +90,6 @@ export default async function ParticipantsPage() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </TourTarget>
   )
 }

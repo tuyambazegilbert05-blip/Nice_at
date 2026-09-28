@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Menu, Plus } from 'lucide-react'
 import { UserMenu } from './UserMenu'
 import { Sidebar } from './Sidebar'
+import { OnboardingTour } from '../onboarding/OnboardingTour'
 import { gsap } from '../../motion/gsap'
 import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
 
@@ -78,6 +79,7 @@ export function Header() {
         </div>
 
         <div className="flex items-center space-x-3">
+          <OnboardingTour />
           <Link
             href="/sessions/new"
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-nice-blue-500 hover:bg-nice-blue-600 text-xs font-semibold text-white transition-colors shadow-subtle"

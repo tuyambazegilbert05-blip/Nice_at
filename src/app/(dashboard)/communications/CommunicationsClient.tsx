@@ -20,6 +20,10 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
   const [error, setError] = useState('')
 
   useEffect(() => {
+    document.querySelector<HTMLElement>('[data-tour="platform-communications"]')?.setAttribute('data-tour-ready', 'true')
+  }, [])
+
+  useEffect(() => {
     if (!canCommunicate) return
     fetch('/api/communications').then(async (response) => {
       const result = await response.json()
@@ -76,7 +80,7 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
   const team = recipients.filter((recipient) => recipient.category === 'Team')
   const attendees = recipients.filter((recipient) => recipient.category === 'Opted-in attendee')
 
-  return <div className="space-y-6">
+  return <div data-tour="platform-communications" aria-busy={canCommunicate && loading} className="space-y-6">
     <header className="flex items-start gap-3 border-b border-slate-200 pb-4">
       <div className="rounded-xl bg-sky-50 p-3 text-sky-700"><Mail className="h-6 w-6" /></div>
       <div><h1 className="text-2xl font-bold text-slate-900">Communications</h1><p className="mt-1 text-sm text-slate-600">Compose a NiCE Club Rwanda email, preview the branded layout, then confirm delivery.</p></div>

@@ -20,6 +20,10 @@ export default function AccountPage() {
   const root = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    root.current?.setAttribute('data-tour-ready', 'true')
+  }, [])
+
+  useEffect(() => {
     fetch('/api/auth').then((response) => response.json()).then((data) => {
       if (data.user) {
         setUser(data.user)
@@ -59,7 +63,7 @@ export default function AccountPage() {
   const initials = formatInitials(user?.name ?? 'NiCE Staff')
 
   return (
-    <div ref={root} className="flex flex-col gap-8 pb-10">
+    <div ref={root} data-tour="platform-account" className="flex flex-col gap-8 pb-10">
       <section data-account-item className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white px-6 py-7 shadow-sm sm:px-8">
         <div className="absolute -right-16 -top-20 size-56 rounded-full bg-sky-100/70 blur-3xl" aria-hidden="true" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -89,5 +93,3 @@ export default function AccountPage() {
     </div>
   )
 }
-
-

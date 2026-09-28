@@ -149,6 +149,31 @@
 - Session fetch failures remain visible as an accessible alert instead of leaving the loading animation running.
 - Validation: `npm run type-check` passed; `npm run lint` passed with three existing `<img>` optimization warnings elsewhere in the project; `git diff --check` passed.
 
+## Analytics Database Connection Pressure (2026-09-28)
+
+- Global and per-session analytics previously issued seven and four independent pool queries concurrently. Each query checked out its own PostgreSQL connection, so concurrent page/API refreshes could exhaust a hosted database's connection allowance and fail the Server Component render (surfacing as React error #441 in production).
+- Added a shared `withConnection` helper and run each analytics query group sequentially over one checked-out client. This caps each analytics render at one pool connection without overlapping `client.query()` calls.
+- Validation: `npm run type-check`, `npm run lint` (0 errors; three existing `<img>` optimization warnings), and `git diff --check` passed. `npm run build` could not complete: Next.js 16 Turbopack failed while binding a local port (`Operation not permitted`), including on the elevated retry.
+
+## Sidebar Active Marker Alignment (2026-09-28)
+
+- Keep the navigation group containing the current route expanded, and disable collapsing that active group so the selected link stays visible.
+- Hide and reset the animated active marker whenever its target is missing or inside a collapsed group, preventing a detached blue highlight.
+- Validation: `npm run type-check`, `npm run lint` (0 errors; three existing `<img>` optimization warnings), and `git diff --check` passed.
+
+## First-Visit Product Tour (2026-09-28)
+
+- Integrated the approved platform-wide tour across all nine sidebar sections, with a header tour button for first-time users that moves to Settings after their first tour outcome, visible Skip/Back/Next controls, keyboard navigation, live announcements, reduced-motion settings, and missing-target waiting.
+- Added stable `data-tour` targets on each destination page and a loading/modal/ready-state guard for automatic startup. The server returns the signed-in user’s relevant permissions; the tour omits Communications and administrative Settings when that role lacks access and adjusts Sessions copy for read-only users.
+- Added a hydration-ready marker to each target; Driver.js waits for that page-owned signal before adding spotlight classes and ARIA attributes, avoiding React hydration mismatches on the dashboard and other routes.
+- Disconnected the per-step DOM observer before opening Driver.js, preventing its own spotlight mutations from reopening the same step during route handoffs. Back, Next, and Finish now use Driver.js native controls and callbacks; Skip remains a visible custom action.
+- Tour position is held in tab-scoped session storage only while moving between route steps, then cleared on Skip or Finish; the server-side completion flag remains the source of truth for future visits.
+- Added `users.has_completed_onboarding` and `users.onboarding_outcome`. Migration 010 marks existing accounts complete and new registrations incomplete; migration 011 saves the first outcome as `skipped` or `completed`. The authenticated API preserves that first response when the user later replays the tour from Settings.
+- Added a short directional tooltip entrance, a one-shot target pulse, and a prominent NiCE-colored guide character animated with scoped GSAP reactions: greeting wave, energetic pointing, and a finishing celebration. A gentle idle bob and sparkle keep the character lively while a step is open; both stop for reduced-motion users. Finishing adds a small reduced-motion-aware confetti burst.
+- External LottieFiles character candidates and their license notes are listed in [onboarding-animation-assets.md](onboarding-animation-assets.md); no third-party animation files have been added pending visual/license review.
+- Validation: migration 011 applied successfully; `npm run type-check`, `npm run lint` (0 errors; three existing `<img>` optimization warnings), `git diff --check`, and `npm run build` passed. Next.js reported its existing middleware convention deprecation warning.
+- Hydration fix validation: `npm run type-check`, `npm run lint`, `git diff --check`, and `npm run build` passed.
+
 ---
 
 ## Phase Tracker

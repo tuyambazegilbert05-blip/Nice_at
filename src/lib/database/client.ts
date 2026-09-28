@@ -48,6 +48,16 @@ export function query<T extends QueryResultRow = QueryResultRow>(
   return getPool().query<T>(text, values)
 }
 
+/** Reuse one pool connection for a group of related queries. */
+export async function withConnection<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await getPool().connect()
+  try {
+    return await work(client)
+  } finally {
+    client.release()
+  }
+}
+
 export async function withTransaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await getPool().connect()
   try {

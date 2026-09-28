@@ -9,6 +9,7 @@ import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
 import { RestrictedActionButton } from '../../../components/ui/RestrictedAction'
+import { TourTarget } from '../../../components/onboarding/TourTarget'
 
 export default async function AttendancePage() {
   const user = await getCurrentUser()
@@ -18,7 +19,7 @@ export default async function AttendancePage() {
   const [records, sessions] = await Promise.all([getAllAttendance(), getAllSessions()])
   const sessionTitles = new Map(sessions.map((session) => [session.id, session.title]))
   return (
-    <div className="space-y-6">
+    <TourTarget name="platform-attendance" className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-3.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -98,6 +99,6 @@ export default async function AttendancePage() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </TourTarget>
   )
 }

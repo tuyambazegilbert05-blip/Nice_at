@@ -10,6 +10,7 @@ import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
 import { RestrictedActionButton } from '../../../components/ui/RestrictedAction'
+import { TourTarget } from '../../../components/onboarding/TourTarget'
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          {canCreateSessions ? <Link href="/sessions/new">
+          {canCreateSessions ? <Link href="/sessions/new" data-tour="create-session">
             <Button variant="primary" size="md" leftIcon={<Plus className="w-4 h-4" />}>
               Create Session
             </Button>
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <TourTarget name="dashboard-overview" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Sessions"
           value={overview.totalSessions?.toLocaleString() ?? '—'}
@@ -71,7 +72,7 @@ export default async function DashboardPage() {
           subtitle="Per published session"
           icon={<TrendingUp className="w-5 h-5 text-nice-blue-600" />}
         />
-      </div>
+      </TourTarget>
 
       {/* Main Grid: Active Sessions & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -83,7 +84,7 @@ export default async function DashboardPage() {
                 <CardTitle>Recent Sessions</CardTitle>
                 <CardDescription>Live status of your latest outreach and technical sessions</CardDescription>
               </div>
-              <Link href="/sessions" className="text-xs font-semibold text-nice-blue-600 hover:text-nice-blue-700">
+              <Link href="/sessions" data-tour="sessions-navigation" className="text-xs font-semibold text-nice-blue-600 hover:text-nice-blue-700">
                 View all →
               </Link>
             </CardHeader>
@@ -162,6 +163,10 @@ export default async function DashboardPage() {
                   <span>Export verified attendee lists directly to CSV or XLSX post-event.</span>
                 </li>
               </ul>
+              <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                <Link data-tour="attendance-navigation" href="/attendance" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-600 hover:border-nice-blue-200 hover:text-nice-blue-700">Attendance records</Link>
+                <Link data-tour="analytics-navigation" href="/analytics" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-600 hover:border-nice-blue-200 hover:text-nice-blue-700">Explore analytics</Link>
+              </div>
             </CardContent>
           </Card>
         </div>

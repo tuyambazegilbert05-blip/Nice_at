@@ -25,6 +25,7 @@ import { ROLE_DESCRIPTIONS, ROLE_PERMISSIONS } from '../../../lib/permissions/ro
 import { formatInitials } from '../../../utils/format'
 import { User, UserRole } from '../../../types/user'
 import ActivityLogPanel from '../../../components/settings/ActivityLogPanel'
+import { SettingsTourReplayButton } from '../../../components/onboarding/OnboardingTour'
 
 type SettingsTab = 'team' | 'permissions' | 'organization' | 'activity'
 
@@ -96,6 +97,7 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
+    document.querySelector<HTMLElement>('[data-tour="platform-settings"]')?.setAttribute('data-tour-ready', 'true')
     let cancelled = false
     async function loadSettingsAccess() {
       try {
@@ -137,16 +139,16 @@ export default function SettingsPage() {
   const roles: UserRole[] = ['ADMIN', 'MANAGER', 'STAFF', 'VIEWER']
 
   return (
-    <div className="space-y-6">
+    <div data-tour="platform-settings" aria-busy={currentRole === null} className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center gap-3.5 pb-4 border-b border-slate-200">
+      <div className="flex flex-wrap items-center justify-between gap-3.5 pb-4 border-b border-slate-200">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/brand/NiCE-Logo-Animated.gif"
           alt="NiCE Club Rwanda"
           className="w-12 h-12 rounded-xl object-contain bg-white shadow-subtle p-0.5 border border-slate-200/80"
         />
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
             Settings & Access Control
           </h1>
@@ -154,6 +156,7 @@ export default function SettingsPage() {
             Manage organization settings, staff accounts, and role-based permissions (RBAC).
           </p>
         </div>
+        <SettingsTourReplayButton />
       </div>
 
       {/* Navigation Tabs */}

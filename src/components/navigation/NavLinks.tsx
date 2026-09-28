@@ -35,6 +35,9 @@ export function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ Operations: true, Workspace: true })
   const groupStateKey = Object.entries(expandedGroups).map(([label, expanded]) => `${label}:${expanded}`).join('|')
+  const activeGroup = NAVIGATION_GROUPS.find(({ items }) => items.some((item) =>
+    pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href)),
+  ))
 
   useEffect(() => {
     let cancelled = false
@@ -51,7 +54,13 @@ export function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     const navigation = nav.current
     const active = navigation?.querySelector<HTMLElement>('[aria-current="page"]')
     const marker = indicator.current
-    if (!navigation || !active || !marker) return
+    if (!navigation || !marker) return
+    if (!active || active.closest('[aria-hidden="true"]')) {
+      gsap.set(marker, { autoAlpha: 0 })
+      marker.dataset.positioned = ''
+      return
+    }
+    gsap.set(marker, { autoAlpha: 1 })
     const targetY = active.getBoundingClientRect().top - navigation.getBoundingClientRect().top + navigation.scrollTop
     const targetHeight = active.offsetHeight
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -71,7 +80,7 @@ export function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     <nav ref={nav} className="relative flex flex-col space-y-1" aria-label="Main navigation">
       <span ref={indicator} aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-0 rounded-lg bg-nice-blue-50 ring-1 ring-nice-blue-100" />
       {NAVIGATION_GROUPS.map(({ label, items }) => {
-        const expanded = expandedGroups[label]
+        const expanded = expandedGroups[label] || label === activeGroup?.label
         const groupId = `nice-nav-group-${label.toLowerCase()}`
         return (
           <NavigationGroup
@@ -80,6 +89,7 @@ export function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
             label={label}
             items={items.filter((item) => !item.allowedRoles || (currentRole !== null && item.allowedRoles.includes(currentRole)))}
             expanded={expanded}
+            collapsible={label !== activeGroup?.label}
             pathname={pathname ?? ''}
             onToggle={() => setExpandedGroups((current) => ({ ...current, [label]: !current[label] }))}
             onItemClick={onItemClick}
@@ -90,11 +100,12 @@ export function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   )
 }
 
-function NavigationGroup({ id, label, items, expanded, pathname, onToggle, onItemClick }: {
+function NavigationGroup({ id, label, items, expanded, collapsible, pathname, onToggle, onItemClick }: {
   id: string
   label: string
   items: NavigationItem[]
   expanded: boolean
+  collapsible: boolean
   pathname: string
   onToggle: () => void
   onItemClick?: () => void
@@ -116,7 +127,7 @@ function NavigationGroup({ id, label, items, expanded, pathname, onToggle, onIte
 
   return (
     <section className="relative z-10">
-      <button type="button" aria-expanded={expanded} aria-controls={id} onClick={onToggle} className="flex min-h-9 w-full items-center justify-between rounded-md px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nice-blue-500">
+      <button type="button" disabled={!collapsible} aria-expanded={expanded} aria-controls={id} onClick={onToggle} className="flex min-h-9 w-full items-center justify-between rounded-md px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nice-blue-500 disabled:cursor-default disabled:hover:text-slate-400">
         {label}
         <ChevronDown aria-hidden="true" className={cn('h-3.5 w-3.5 transition-transform duration-150', expanded && 'rotate-180')} />
       </button>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import 'driver.js/dist/driver.css'
 import { ButtonFeedback } from '../motion/gsap/ButtonFeedback'
 
 export const metadata: Metadata = {

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Activity, CalendarDays, ClipboardCheck, Users } from 'lucide-react'
 import { Card, CardContent } from '../../../components/ui/Card'
+import { TourTarget } from '../../../components/onboarding/TourTarget'
 
 const tools = [
   { title: 'Sessions', description: 'View scheduled sessions, open a session, or create a new one.', href: '/sessions', icon: CalendarDays },
@@ -11,7 +12,7 @@ const tools = [
 
 export default function PlatformToolsPage() {
   return (
-    <div className="space-y-6">
+    <TourTarget name="platform-tools" className="space-y-6">
       <div className="border-b border-slate-200 pb-3">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Platform Tools</h1>
         <p className="mt-1 text-sm text-slate-500">Open the live NiCE Club attendance and reporting sections.</p>
@@ -33,6 +34,6 @@ export default function PlatformToolsPage() {
           </Link>
         ))}
       </div>
-    </div>
+    </TourTarget>
   )
 }

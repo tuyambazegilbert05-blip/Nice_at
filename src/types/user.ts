@@ -37,6 +37,8 @@ export interface AuthUser {
   email: string
   role: UserRole
   avatarUrl?: string | null
+  hasCompletedOnboarding: boolean
+  onboardingOutcome?: 'not_started' | 'skipped' | 'completed'
 }
 
 export interface AuthSession {
