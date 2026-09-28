@@ -5,6 +5,7 @@ import { deleteSessionAndAttendance, getSessionById, updateSessionContent, updat
 import { SessionStatus } from '../../../../types/session'
 import { z } from 'zod'
 import { recordActivity } from '../../../../lib/activity/activity-service'
+import { verifyCurrentPassword } from '../../../../lib/auth/session'
 
 const sessionContentSchema = z.object({
   title: z.string().trim().min(3).max(180),
@@ -91,13 +92,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: Promise<{ sessionId: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
   if (!hasPermission(user.role, 'session:delete')) {
     return NextResponse.json({ success: false, error: 'Only administrators can delete sessions and their attendance records.' }, { status: 403 })
   }
   try {
+    const body = await request.json().catch(() => null)
+    const confirmation = z.object({ password: z.string().min(1).max(256) }).safeParse(body)
+    if (!confirmation.success) {
+      return NextResponse.json({ success: false, error: 'Enter your password to confirm permanent deletion.' }, { status: 400 })
+    }
+    if (!await verifyCurrentPassword(user.id, confirmation.data.password)) {
+      return NextResponse.json({ success: false, error: 'Your password is incorrect. Nothing was deleted.' }, { status: 403 })
+    }
     const { sessionId } = await params
     const session = await getSessionById(sessionId)
     if (!session) return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 })

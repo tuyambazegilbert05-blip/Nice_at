@@ -340,14 +340,14 @@ export default function AttendTokenPage({ params }: { params: Promise<{ token: s
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
-                    label="Faculty / Department"
+                    label="Department"
                     value={faculty}
                     onChange={(e) => setFaculty(e.target.value)}
                     placeholder="e.g. School of Science & Tech"
                   />
 
                   <Input
-                    label="Program / Major"
+                    label="Faculty"
                     value={program}
                     onChange={(e) => setProgram(e.target.value)}
                     placeholder="e.g. Physics / Electrical Eng"

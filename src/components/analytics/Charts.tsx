@@ -44,7 +44,7 @@ export function TimeSeriesChart({ data, label = 'Check-ins' }: {
         })}
         <path d={area} fill="url(#analytics-area)" />
         <path d={line} fill="none" stroke="#1674c8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        {points.map((point) => <g key={point.label}><circle cx={point.x} cy={point.y} r="3.5" fill="#fff" stroke="#1674c8" strokeWidth="2" vectorEffect="non-scaling-stroke"><title>{point.label}: {number(point.value)} {label.toLowerCase()}</title></circle></g>)}
+        {points.map((point) => <g key={point.label}><circle cx={point.x} cy={point.y} r="3.5" fill="#fff" stroke="#1674c8" strokeWidth="2" vectorEffect="non-scaling-stroke"><title>{`${point.label}: ${number(point.value)} ${label.toLowerCase()}`}</title></circle></g>)}
         {labelIndexes.map((index) => <text key={data[index].label} x={points[index].x} y={height - 9} textAnchor={index === 0 ? 'start' : index === data.length - 1 ? 'end' : 'middle'} className="fill-slate-400" fontSize="11">{data[index].label}</text>)}
       </svg>
       <div className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500"><span className="h-2 w-2 rounded-full bg-nice-blue-600" />{label}</div>
@@ -69,7 +69,7 @@ export function DonutChart({ items, emptyLabel = 'No data' }: { items: Distribut
       <div className="relative mx-auto aspect-square w-full max-w-44">
         <svg viewBox="0 0 112 112" className="h-full w-full -rotate-90" role="img" aria-label={`Distribution of ${number(total)} attendance records`}>
           <circle cx="56" cy="56" r={radius} fill="none" stroke="#edf2f7" strokeWidth="13" />
-          {segments.map((segment) => <circle key={segment.label} cx="56" cy="56" r={radius} fill="none" stroke={segment.color} strokeWidth="13" strokeDasharray={`${segment.length} ${circumference - segment.length}`} strokeDashoffset={-segment.offset} strokeLinecap="butt"><title>{segment.label}: {number(segment.count)}, {Math.round((segment.count / total) * 100)}%</title></circle>)}
+          {segments.map((segment) => <circle key={segment.label} cx="56" cy="56" r={radius} fill="none" stroke={segment.color} strokeWidth="13" strokeDasharray={`${segment.length} ${circumference - segment.length}`} strokeDashoffset={-segment.offset} strokeLinecap="butt"><title>{`${segment.label}: ${number(segment.count)}, ${Math.round((segment.count / total) * 100)}%`}</title></circle>)}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-2xl font-bold tracking-tight text-slate-900">{number(total)}</span><span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total</span></div>
       </div>

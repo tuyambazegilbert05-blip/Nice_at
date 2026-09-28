@@ -64,7 +64,7 @@ export default async function ParticipantsPage() {
               <TableRow>
                 <TableHead>Participant</TableHead>
                 <TableHead>Primary Role</TableHead>
-                <TableHead>Faculty / Department</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead>Total Sessions</TableHead>
                 <TableHead>Last Attended</TableHead>
               </TableRow>

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '../../utils/cn'
 import { gsap } from '../../motion/gsap'
 import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
@@ -79,9 +80,9 @@ export function Modal({ isOpen, onClose, title, description, children, className
     }
   }, [isOpen, close])
 
-  if (!isOpen) return null
+  if (!isOpen || typeof document === 'undefined') return null
 
-  return (
+  return createPortal((
     <div
       role="dialog"
       aria-modal="true"
@@ -92,7 +93,7 @@ export function Modal({ isOpen, onClose, title, description, children, className
       {/* Backdrop */}
       <div
         ref={backdrop}
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
+        className="fixed inset-0 bg-slate-900/25 backdrop-blur-[2px]"
         onClick={close}
         aria-hidden="true"
       />
@@ -123,5 +124,5 @@ export function Modal({ isOpen, onClose, title, description, children, className
         <div className="mt-4">{children}</div>
       </div>
     </div>
-  )
+  ), document.body)
 }

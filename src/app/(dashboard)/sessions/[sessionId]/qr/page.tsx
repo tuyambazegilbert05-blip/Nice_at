@@ -22,6 +22,7 @@ import { downloadBrandedFlyer } from '../../../../../lib/qr/flyer-generator'
 import { ROLE_PERMISSIONS } from '../../../../../lib/permissions/roles'
 import type { UserRole } from '../../../../../types/user'
 import { RestrictedActionButton } from '../../../../../components/ui/RestrictedAction'
+import { SessionLoadingState } from '../../../../../components/sessions/SessionLoadingState'
 
 export default function SessionQRPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
@@ -69,7 +70,10 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
       .catch((err) => console.error('Failed to generate QR code', err))
   }, [session, canGenerate])
 
-  if (!session) return <p className="p-6 text-sm text-slate-600">{loadError || 'Loading session…'}</p>
+  if (!session) {
+    if (loadError) return <p role="alert" className="p-6 text-sm text-rose-700">{loadError}</p>
+    return <SessionLoadingState />
+  }
 
   const attendanceUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/attend/${session.publicToken}`
@@ -94,7 +98,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
         time: `${session.startTime} — ${session.endTime} CAT`,
         location: session.location,
         qrDataUrl,
-        logoUrl: '/brand/NiCE-Logo-Animated.gif',
+        logoUrl: '/brand/logo.png',
       })
     } catch (err) {
       console.error('Failed to download flyer', err)

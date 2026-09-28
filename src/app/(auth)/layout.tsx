@@ -1,8 +1,13 @@
 import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { redirect } from 'next/navigation'
+import { getCurrentUser } from '../../lib/auth'
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser()
+  if (user) redirect('/dashboard')
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-nice-blue-50/30 to-slate-50 flex flex-col justify-center items-center p-4 sm:p-6 relative bg-scientific-grid">
       <div className="absolute top-6 left-6 sm:top-8 sm:left-8">

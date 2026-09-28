@@ -28,6 +28,16 @@ export async function authenticate(email: string, password: string): Promise<Aut
   }
 }
 
+/** Re-checks the active user's password immediately before a sensitive action. */
+export async function verifyCurrentPassword(userId: string, password: string): Promise<boolean> {
+  const result = await query<{ password_hash: string }>(
+    'SELECT password_hash FROM users WHERE id=$1 AND is_active=true',
+    [userId],
+  )
+  const storedHash = result.rows[0]?.password_hash
+  return Boolean(storedHash && verifyPassword(password, storedHash))
+}
+
 /**
  * Retrieves the currently authenticated user from HTTP session cookies.
  */

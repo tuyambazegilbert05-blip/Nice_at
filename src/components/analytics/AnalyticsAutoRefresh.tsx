@@ -1,14 +1,19 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 export function AnalyticsAutoRefresh() {
   const router = useRouter()
+  const lastRefreshAt = useRef(0)
 
   useEffect(() => {
+    lastRefreshAt.current = Date.now()
     const refresh = () => {
-      if (document.visibilityState === 'visible') router.refresh()
+      const now = Date.now()
+      if (document.visibilityState !== 'visible' || now - lastRefreshAt.current < 30_000) return
+      lastRefreshAt.current = now
+      router.refresh()
     }
     const interval = window.setInterval(refresh, 30_000)
     document.addEventListener('visibilitychange', refresh)

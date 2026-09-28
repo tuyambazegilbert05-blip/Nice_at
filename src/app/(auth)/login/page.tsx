@@ -74,7 +74,6 @@ export default function LoginPage() {
       const redirectTo = urlParams?.get('redirect') || '/dashboard'
 
       router.push(redirectTo)
-      router.refresh()
     } catch (err) {
       console.error('Sign in error:', err)
       setError('An unexpected error occurred. Please try again.')

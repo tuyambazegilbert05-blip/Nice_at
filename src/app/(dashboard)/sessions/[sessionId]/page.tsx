@@ -1,6 +1,6 @@
 'use client'
 
-import React, { use, useState } from 'react'
+import React, { use, useCallback, useState } from 'react'
 import Link from 'next/link'
 import {
   Calendar,
@@ -15,14 +15,19 @@ import {
   Check,
   BarChart3,
   Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Session } from '../../../../types/session'
 import { Attendance } from '../../../../types/attendance'
+import { SessionAttendeesTable } from '../../../../components/attendance/SessionAttendeesTable'
+import { SessionLoadingState } from '../../../../components/sessions/SessionLoadingState'
+import { Modal } from '../../../../components/ui/Modal'
+import { Input } from '../../../../components/ui/Input'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../../components/ui/Card'
 import { Badge } from '../../../../components/ui/Badge'
 import { Button } from '../../../../components/ui/Button'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../../components/ui/Table'
 import { formatDate } from '../../../../utils/date'
 import { ROLE_PERMISSIONS } from '../../../../lib/permissions/roles'
 import type { UserRole } from '../../../../types/user'
@@ -43,10 +48,20 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
   const [authError, setAuthError] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [deletePassword, setDeletePassword] = useState('')
+  const [showDeletePassword, setShowDeletePassword] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [overrideMinutes, setOverrideMinutes] = useState(10)
   const [overrideBusy, setOverrideBusy] = useState(false)
   const [overrideError, setOverrideError] = useState('')
   const [clockNow, setClockNow] = useState(0)
+  const closeDeleteConfirm = useCallback(() => {
+    if (deleting) return
+    setDeleteConfirmOpen(false)
+    setDeletePassword('')
+    setShowDeletePassword(false)
+    setDeleteError('')
+  }, [deleting])
 
   React.useEffect(() => {
     fetch('/api/auth').then(async (response) => {
@@ -86,7 +101,10 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
     return () => { window.clearInterval(timer); window.clearInterval(refresh) }
   }, [sessionId])
 
-  if (!session) return <p className="p-6 text-sm text-slate-600">{loadError || 'Loading session…'}</p>
+  if (!session) {
+    if (loadError) return <p role="alert" className="p-6 text-sm text-rose-700">{loadError}</p>
+    return <SessionLoadingState />
+  }
 
   const attendanceUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/attend/${session.publicToken}`
@@ -128,16 +146,21 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
 
   const handleDeleteSession = async () => {
     setDeleteError('')
-    const attendeeCount = session._count?.attendance ?? attendees.length
-    if (!window.confirm(`Permanently delete “${session.title}” and its ${attendeeCount} attendee record(s)? This cannot be undone.`)) return
+    if (!deletePassword) {
+      setDeleteError('Enter your password to confirm permanent deletion.')
+      return
+    }
 
     setDeleting(true)
     try {
-      const response = await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, { method: 'DELETE' })
+      const response = await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword }),
+      })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Unable to delete this session.')
       router.push('/sessions')
-      router.refresh()
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Unable to delete this session.')
       setDeleting(false)
@@ -238,8 +261,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
               >
                 {isOpen ? 'Close Attendance' : 'Open Attendance'}
               </Button> : accessChecked ? <RestrictedActionButton message={authError || `Access denied: your ${currentRole} role cannot change this session status.`} variant="outline" size="sm">{isOpen ? 'Close Attendance' : 'Open Attendance'}</RestrictedActionButton> : <Button disabled variant="outline" size="sm">{isOpen ? 'Close Attendance' : 'Open Attendance'}</Button>}
-              {accessChecked && canDelete && <Button variant="danger" size="sm" disabled={deleting} onClick={handleDeleteSession} leftIcon={<Trash2 className="w-4 h-4" />}>
-                {deleting ? 'Deleting…' : 'Delete Session'}
+              {accessChecked && canDelete && <Button variant="danger" size="sm" onClick={() => { setDeleteError(''); setDeletePassword(''); setShowDeletePassword(false); setDeleteConfirmOpen(true) }} leftIcon={<Trash2 className="w-4 h-4" />}>
+                Delete Session
               </Button>}
             </div>
           </div>
@@ -256,7 +279,6 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
             {overrideActive && <p role="status" className="text-xs text-emerald-700">Public check-in is open until {new Date(session.attendanceOverrideUntil!).toLocaleTimeString('en-RW', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Kigali' })} CAT. It will close automatically.</p>}
           </div>}
           {statusError && <p role="alert" className="mt-3 text-sm text-rose-700">{statusError}</p>}
-          {deleteError && <p role="alert" className="mt-3 text-sm text-rose-700">{deleteError}</p>}
           {overrideError && <p role="alert" className="mt-3 text-sm text-rose-700">{overrideError}</p>}
         </CardContent>
       </Card>
@@ -314,33 +336,57 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
             </a> : accessChecked ? <RestrictedActionButton message={authError || `Access denied: your ${currentRole} role cannot export attendance records. Ask an administrator or manager for access.`} variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export CSV</RestrictedActionButton> : <Button disabled variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export CSV</Button>}
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Full Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Participant Type</TableHead>
-                <TableHead>Faculty / Program</TableHead>
-                <TableHead>Check-In Time</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {attendeeError && <TableRow><TableCell colSpan={5} className="text-center py-8 text-rose-700">{attendeeError}</TableCell></TableRow>}
-              {!attendeeError && attendees.length === 0 ? <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-slate-400">
-                  No attendees have checked in yet. Share the QR code with participants.
-                </TableCell>
-              </TableRow> : attendees.map((attendee) => <TableRow key={attendee.id}>
-                <TableCell>{attendee.fullName}</TableCell>
-                <TableCell>{attendee.email}</TableCell>
-                <TableCell>{attendee.participantType}</TableCell>
-                <TableCell>{[attendee.faculty, attendee.program].filter(Boolean).join(' · ') || '—'}</TableCell>
-                <TableCell>{new Date(attendee.submittedAt).toLocaleString('en-RW', { timeZone: 'Africa/Kigali' })}</TableCell>
-              </TableRow>)}
-            </TableBody>
-          </Table>
+          <SessionAttendeesTable
+            records={attendees}
+            questions={session.questions}
+            error={attendeeError}
+            emptyMessage="No attendees have checked in yet. Share the QR code with participants."
+          />
         </CardContent>
       </Card>
+      <Modal
+        isOpen={deleteConfirmOpen}
+        onClose={closeDeleteConfirm}
+        title="Confirm permanent deletion"
+        description="Verify your password before deleting this session."
+        className="max-w-md"
+      >
+        <form onSubmit={(event) => { event.preventDefault(); void handleDeleteSession() }} className="space-y-4">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+            <p className="font-semibold">This cannot be undone.</p>
+            <p className="mt-1">Deleting “{session.title}” will also permanently remove {session._count?.attendance ?? attendees.length} attendance record(s) and their submitted responses.</p>
+          </div>
+          <div className="relative">
+            <Input
+              label="Your account password"
+              type={showDeletePassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              required
+              value={deletePassword}
+              onChange={(event) => setDeletePassword(event.target.value)}
+              disabled={deleting}
+              error={deleteError}
+              className="pr-11"
+            />
+            <button
+              type="button"
+              aria-label={showDeletePassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showDeletePassword}
+              onClick={() => setShowDeletePassword((visible) => !visible)}
+              disabled={deleting}
+              className="absolute right-2 top-7 rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nice-blue-500 disabled:opacity-50"
+            >
+              {showDeletePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" disabled={deleting} onClick={closeDeleteConfirm}>Cancel</Button>
+            <Button type="submit" variant="danger" disabled={deleting} leftIcon={<Trash2 className="h-4 w-4" />}>
+              {deleting ? 'Deleting session…' : 'Verify & Delete Session'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

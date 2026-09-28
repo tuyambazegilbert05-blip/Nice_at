@@ -31,6 +31,38 @@
 - Verified the `users.avatar_url` lookup used by current-user authentication and the dashboard metrics/recent-session queries against the connected database.
 - Staff directory responses now include the optional profile image URL; the staff list displays it with initials as the broken-image and no-image fallback.
 
+## Startup Redirect Loop Fix — 2026-09-28
+
+- Middleware no longer treats the presence of any session cookie as proof of a valid login. This prevents expired or malformed cookies from bouncing between `/dashboard` and `/login` during startup.
+- The auth layout now checks the authenticated user before redirecting to the dashboard. Removed redundant router refreshes after login and sign-out navigation.
+- Validation: `npm run type-check` passes; `npm run lint` reports no errors and three existing image optimization warnings. Production build remains blocked by a Turbopack worker process error (`Operation not permitted`) under the current environment.
+
+## Flyer Logo Update — 2026-09-28
+
+- Downloaded session flyers now use the official static logo at `public/brand/logo.png` instead of the animated GIF.
+
+## Analytics Hydration Fix — 2026-09-28
+
+- SVG chart tooltips now render as a single text string inside `<title>`, avoiding React hydration errors caused by array children.
+- Analytics timer and tab-visibility refreshes share a 30-second throttle to avoid duplicate aggregate queries.
+
+## Attendee Submission Showcase — 2026-09-28
+
+- Session attendee rosters now show key takeaways and feedback columns; each mouse- or keyboard-activated row opens the complete stored submission, including contact, academic, consent, custom-question, and metadata fields.
+- The detail modal uses overlapping, staggered GSAP reveals and honors `prefers-reduced-motion`.
+- Validation: `npm run type-check` passes; `npm run lint` has no errors and reports three existing image warnings. `npm run build` remains blocked by the environment's Turbopack worker process error.
+
+## Destructive Action Password Confirmation — 2026-09-28
+
+- Permanent session deletion now prompts for the administrator's password and verifies it on the server before removing the session and attendance records.
+- There is no staff-account deletion action in the current application.
+- Validation: `npm run type-check` passes; `npm run lint` has no errors and reports three existing image warnings. Production build remains blocked by the Turbopack worker process error in this environment.
+
+## Modal Backdrop Fix — 2026-09-28
+
+- Shared modals render through a document-body portal so dashboard scroll containers cannot clip the backdrop or leave the header uncovered. The overlay now uses a lighter slate tint and subtle blur.
+- Validation: type-check and focused ESLint checks pass.
+
 ## Communication and Invitation Permissions — 2026-09-28
 
 - Full communications access is granted to ADMIN, MANAGER, and STAFF; VIEWER is excluded from the navigation, route, recipient, preview, and send APIs.
@@ -109,6 +141,13 @@
 - No educational reactor/fission simulation has been added; scientific claims and visualization accuracy need review before that public experience is built.
 - Validation on 2026-09-26 with Node.js 22.23.2: `npx tsc --noEmit --incremental false`, `npm run lint`, `git diff --check`, and `npm run build` pass. The build compiled and generated all 29 routes; it reports the existing Next.js middleware-to-proxy deprecation warning.
 - Remaining validation: exercise context loss and WebGL-disabled fallback, inspect runtime frame rate and visual quality on iOS Safari/Android Chrome, and review accessible naming with screen readers. Phases 12–13 stay in progress until those runtime checks are complete.
+
+## Session Loading Motion (2026-09-28)
+
+- Replaced the plain session-loading text on session detail and QR pages with a centered NiCE animated logo loader.
+- GSAP runs the logo entrance, floating motion, opposing orbit rotations, signal pulse, and progress reveal in parallel. `gsap.matchMedia()` disables continuous motion when reduced motion is requested, and the shared `useGSAP` context handles teardown.
+- Session fetch failures remain visible as an accessible alert instead of leaving the loading animation running.
+- Validation: `npm run type-check` passed; `npm run lint` passed with three existing `<img>` optimization warnings elsewhere in the project; `git diff --check` passed.
 
 ---
 

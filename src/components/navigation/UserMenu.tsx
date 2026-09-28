@@ -38,7 +38,6 @@ export function UserMenu() {
       await fetch('/api/auth', { method: 'DELETE' })
       setIsOpen(false)
       router.push('/login')
-      router.refresh()
     } catch (err) {
       console.error('Failed to sign out:', err)
       router.push('/login')

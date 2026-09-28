@@ -30,19 +30,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 2. If already logged in and visiting /login, redirect to /dashboard
-  if (pathname === '/login' && hasToken) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
   return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match protected routes and login
-     */
+    /* Match protected routes */
     '/dashboard/:path*',
     '/sessions/:path*',
     '/attendance/:path*',
@@ -51,6 +44,5 @@ export const config = {
     '/resources/:path*',
     '/settings/:path*',
     '/account/:path*',
-    '/login',
   ],
 }
