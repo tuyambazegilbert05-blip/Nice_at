@@ -1,6 +1,6 @@
 # PostgreSQL data store
 
-PostgreSQL is the persistent source of truth for staff accounts, invitations, sessions, session form questions, attendee check-ins, email-update consent, and email delivery records. Application code accesses it through the server-only pool in `src/lib/database/client.ts`; browser code calls authenticated Next.js API routes instead of connecting to the database.
+PostgreSQL is the persistent source of truth for staff accounts and profiles, invitations, password resets, sessions, session form questions, attendee check-ins, email-update consent, email delivery records, and staff activity. Application code accesses it through the server-only pool in `src/lib/database/client.ts`; browser code calls Next.js API routes instead of connecting to the database.
 
 ## Initialize a database
 
@@ -10,16 +10,19 @@ PostgreSQL is the persistent source of truth for staff accounts, invitations, se
 4. Add `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, and a unique `INITIAL_ADMIN_PASSWORD` of at least 14 characters to `.env.local` (these are intentionally not copied into an existing `.env` automatically), then run `npm run db:seed-admin`. The password is stored as a salted PBKDF2 hash. Remove the password variable after creating the account. Shell variables must be exported for npm child processes to receive them.
 5. Start the app. Sign-in verifies the submitted password against the database, and session creation, check-in, staff queries, and exports all read or write PostgreSQL.
 
-`npm run db:migrate` verifies that the five required tables exist when it completes. It needs a reachable PostgreSQL server and a database that already exists; it does not create the server or database itself.
+`npm run db:migrate` verifies the required tables exist when it completes. It needs a reachable PostgreSQL server and a database that already exists; it does not create the server or database itself.
 
 ## Data model
 
 - `users`: normalized unique staff email, password hash, role, active state, and timestamps.
-- `sessions`: schedule, unique cryptographic public token, status, duplicate policy, and creator.
+- `users.avatar_url`: optional profile image link.
+- `sessions`: schedule, unique cryptographic public token, status, duplicate policy, creator, and temporary attendance-extension expiry.
 - `session_questions`: ordered form definitions for each session.
 - `attendance_records`: private attendee details, normalized email, submitted responses, and UTC timestamp.
 - `user_invitations`: hashed, seven-day staff invitation links and acceptance timestamps.
 - `email_delivery_log`: recipient, category, provider result, and timestamp for each attempt; message bodies and API secrets are not stored.
+- `password_reset_tokens`: hashed, expiring, single-use password recovery tokens.
+- `activity_log`: actor and role snapshots, action, related record, details, and timestamp for selected staff mutations. The admin-only log starts recording after migration 008; it is not a record of every page view or failed request.
 - `attendance_records.email_updates_opt_in`: optional consent used to include attendees in the Communications contact picker.
 - `schema_migrations`: applied migration ledger.
 

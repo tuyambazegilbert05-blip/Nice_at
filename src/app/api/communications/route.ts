@@ -3,6 +3,7 @@ import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { query } from '../../../lib/database/client'
 import { deliverBrandedEmail } from '../../../lib/email/brevo'
+import { recordActivity } from '../../../lib/activity/activity-service'
 
 async function authorized() {
   const user = await getCurrentUser()
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest) {
       if (delivery.sent) sent += 1
       else failed.push(email)
     }
+    await recordActivity({ actor: user, action: 'communication.sent', targetType: 'communication', targetLabel: subject,
+      summary: `Sent “${subject}” to ${sent} recipient(s)${failed.length ? `; ${failed.length} failed` : ''}`,
+      details: { subject, recipientCount: recipients.length, sentCount: sent, failedCount: failed.length } })
     return NextResponse.json({ success: failed.length === 0, sent, failed: failed.length, failedRecipients: failed, message: `${sent} of ${recipients.length} email(s) accepted by Brevo.` }, { status: failed.length ? 207 : 200 })
   } catch (error) {
     console.error('Could not send platform communication:', error)

@@ -6,6 +6,7 @@ type SessionRow = {
   id: string; title: string; description: string; type: Session['type']; status: SessionStatus
   location: string; session_date: string; start_time: string; end_time: string
   attendance_opens: Date; attendance_closes: Date; public_token: string
+  attendance_override_until: Date | null
   duplicate_policy: Session['duplicatePolicy']; created_by_id: string | null
   created_at: Date; updated_at: Date; attendance_count: string; questions?: Session['questions']
 }
@@ -27,6 +28,7 @@ function mapSession(row: SessionRow): Session {
     startTime: row.start_time.slice(0, 5), endTime: row.end_time.slice(0, 5),
     attendanceOpens: row.attendance_opens.toISOString(),
     attendanceCloses: row.attendance_closes.toISOString(), publicToken: row.public_token,
+    attendanceOverrideUntil: row.attendance_override_until?.toISOString() ?? null,
     duplicatePolicy: row.duplicate_policy, createdById: row.created_by_id,
     createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(),
     _count: { attendance: Number(row.attendance_count) },
@@ -41,6 +43,17 @@ async function getSession(sql: string, values: unknown[]): Promise<Session | und
 
 export async function getAllSessions(): Promise<Session[]> {
   const result = await query<SessionRow>(`${SELECT_SESSION} GROUP BY s.id ORDER BY s.session_date DESC, s.start_time DESC`)
+  return result.rows.map(mapSession)
+}
+
+export async function getRecentSessions(limit = 5): Promise<Session[]> {
+  const result = await query<SessionRow>(`
+    SELECT s.*,
+      (SELECT count(*)::text FROM attendance_records a WHERE a.session_id = s.id) AS attendance_count
+    FROM sessions s
+    ORDER BY s.session_date DESC, s.start_time DESC
+    LIMIT $1
+  `, [limit])
   return result.rows.map(mapSession)
 }
 
@@ -76,4 +89,37 @@ export async function createSession(input: CreateSessionInput, createdById?: str
 export async function updateSessionStatus(id: string, status: SessionStatus): Promise<Session | null> {
   const result = await query('UPDATE sessions SET status=$2, updated_at=now() WHERE id=$1', [id, status])
   return result.rowCount ? (await getSessionById(id)) || null : null
+}
+
+export async function setSessionAttendanceOverride(id: string, minutes: number | null): Promise<Session | null> {
+  const result = await query(
+    `UPDATE sessions SET attendance_override_until=CASE
+       WHEN $2::int IS NULL THEN NULL ELSE now() + ($2::int * interval '1 minute') END,
+       updated_at=now()
+     WHERE id=$1`,
+    [id, minutes],
+  )
+  return result.rowCount ? (await getSessionById(id)) || null : null
+}
+
+export async function updateSessionContent(id: string, input: CreateSessionInput): Promise<Session | null> {
+  const result = await query(
+    `UPDATE sessions SET title=$2,description=$3,type=$4,location=$5,session_date=$6,start_time=$7,end_time=$8,
+      attendance_opens=$9,attendance_closes=$10,duplicate_policy=$11,updated_at=now()
+     WHERE id=$1`,
+    [id, input.title.trim(), input.description.trim(), input.type, input.location.trim(), input.date,
+      input.startTime, input.endTime, input.attendanceOpens, input.attendanceCloses, input.duplicatePolicy],
+  )
+  return result.rowCount ? (await getSessionById(id)) || null : null
+}
+
+export async function deleteSessionAndAttendance(id: string): Promise<{ attendanceDeleted: number } | null> {
+  return withTransaction(async (client) => {
+    const session = await client.query('SELECT id FROM sessions WHERE id=$1 FOR UPDATE', [id])
+    if (!session.rowCount) return null
+
+    const attendance = await client.query('DELETE FROM attendance_records WHERE session_id=$1', [id])
+    await client.query('DELETE FROM sessions WHERE id=$1', [id])
+    return { attendanceDeleted: attendance.rowCount ?? 0 }
+  })
 }

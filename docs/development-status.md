@@ -25,6 +25,25 @@
 - Email rendering uses the NiCE animated brand GIF, blue/emerald identity, and a professional footer. Email clients may choose to display a still frame.
 - Validation: `npm run type-check`, `npm run lint`, and `npm run db:migrate` pass. No real emails were sent. Never place `BREVO_API_KEY` in a `NEXT_PUBLIC_*` variable or commit it.
 
+## Account Profile Schema Fix — 2026-09-28
+
+- The connected database was missing migrations `006_user_profile.sql` and `007_password_resets.sql`, despite both being present in the repository. Applied both with `npm run db:migrate`.
+- Verified the `users.avatar_url` lookup used by current-user authentication and the dashboard metrics/recent-session queries against the connected database.
+- Staff directory responses now include the optional profile image URL; the staff list displays it with initials as the broken-image and no-image fallback.
+
+## Communication and Invitation Permissions — 2026-09-28
+
+- Full communications access is granted to ADMIN, MANAGER, and STAFF; VIEWER is excluded from the navigation, route, recipient, preview, and send APIs.
+- Staff invitations are restricted to ADMIN in both the settings UI and the invitation API.
+- The RBAC matrix now lists the communications capability and identifies team management as administrator-only.
+- Role-restricted controls remain read-only or visually disabled; a centered red access-denied dialog appears only when the user attempts the action and stays open until dismissed. This covers invitations, session creation/status changes, exports, QR generation, and Viewer communications. Server-side checks remain authoritative.
+- Administrators can change another staff account’s role from the Staff Directory. The role update API is administrator-only, prevents self-role changes, and protects the last active administrator from demotion.
+- All authenticated roles can view the current staff list. Non-admins receive a read-only directory without staff email addresses or account IDs; invitations and role-management controls remain admin-only.
+- STAFF can create and manage session details. Administrators can edit the full session metadata and permanently delete a session with its attendance records; deletion is role-checked by the API and removes attendance rows in a database transaction.
+- Added an administrator-only Activity Log settings tab. Server-side records capture the acting staff member and role, action, timestamp, related record, and relevant change details for session changes, staff role changes, invitations, communications, and account updates. Migration `008_activity_log.sql` was applied and the database check confirmed the indexed log table.
+- Administrators can temporarily open a session's public check-in for 5, 10, 15, 30, or 60 minutes from its detail page, then close it early. The check-in API enforces the override while holding the session row lock; public check-in availability refreshes without caching. Migration `009_attendance_override.sql` adds the expiry timestamp and was applied.
+- Removed the fabricated Resources document cards and their nonfunctional buttons; Platform Tools now links to working app sections. Removed analytics availability figures that were not backed by stored completion/rejection events, and clarified that the settings information tab contains read-only platform defaults.
+
 ## Login Usability Update — 2026-09-26
 
 - Added an accessible eye toggle to show or hide the password and immediate pending feedback on sign-in; authentication still waits for server confirmation.
@@ -67,7 +86,9 @@
 - See [motion guidelines](design/motion-guidelines.md) for client boundaries, lifecycle, integration, and usage rules.
 
 - The public check-in success page now uses a scoped 1.4-second GSAP timeline to sequence the card, brand, orbital illustration, success mark, message, and footer. Reduced-motion users see the same content without the choreography.
-- Added a reusable reduced-motion-aware `DoorReveal`: verified session and attendee form cards open after check-in verification, the staff sign-in card opens on page entry, and the dashboard surface opens after successful authentication. Dashboard route changes retain their short page transition.
+- Added a reusable reduced-motion-aware `DoorReveal` for verified session and attendee form cards and staff sign-in. The dashboard now keeps its content visible without relying on client-side entrance animations.
+- The staff sign-in orbital animation now floats transparently above the card without adding layout height or intercepting pointer input.
+- Added dashboard-specific loading and retryable error states. The overview renders live aggregate counts and five recent sessions without loading every attendee record into the page; the monthly count uses `Africa/Kigali`. Metric and session failures now degrade independently, use unavailable markers instead of false zeroes, and leave the rest of the dashboard visible.
 - Added `FormSectionReveal` and `FormFieldsMotion` to the public attendance form, with one-time scroll entrances for its three sections and a subtle focused-field lift. Wired the same focus feedback into staff sign-in. Lottie illustrations now use ScrollTrigger for their entrance while keeping their existing viewport-lazy loading and playback lifecycle.
 
 ## Phase 12 Lottie System — IN PROGRESS (2026-09-26)

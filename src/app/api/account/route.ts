@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '../../../lib/auth/session'
 import { hashPassword, verifyPassword } from '../../../lib/auth/passwords'
 import { query } from '../../../lib/database/client'
+import { recordActivity } from '../../../lib/activity/activity-service'
 
 const profileUrl = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : null
 
@@ -16,6 +17,8 @@ export async function PATCH(request: Request) {
   if (avatarUrl && (!avatarUrl.startsWith('https://') || avatarUrl.length > 500)) return NextResponse.json({ error: 'Profile image URL must be a secure HTTPS link.' }, { status: 400 })
   try {
     const result = await query<{ id: string; name: string; email: string; role: 'ADMIN' | 'MANAGER' | 'STAFF' | 'VIEWER'; avatarUrl: string | null }>('UPDATE users SET name=$1, email=$2, avatar_url=$3, updated_at=now() WHERE id=$4 RETURNING id,name,email,role,avatar_url AS "avatarUrl"', [name, email, avatarUrl, user.id])
+    await recordActivity({ actor: user, action: 'account.profile_updated', targetType: 'staff_account', targetId: user.id, targetLabel: name,
+      summary: `Updated their account profile`, details: { changedFields: ['name', 'email', 'profile image'] } })
     return NextResponse.json({ success: true, user: result.rows[0] })
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === '23505') return NextResponse.json({ error: 'That email address is already in use.' }, { status: 409 })
@@ -33,5 +36,7 @@ export async function POST(request: Request) {
   const result = await query<{ password_hash: string }>('SELECT password_hash FROM users WHERE id=$1', [user.id])
   if (!result.rows[0] || !verifyPassword(currentPassword, result.rows[0].password_hash)) return NextResponse.json({ error: 'Current password is incorrect.' }, { status: 400 })
   await query('UPDATE users SET password_hash=$1, updated_at=now() WHERE id=$2', [hashPassword(newPassword), user.id])
+  await recordActivity({ actor: user, action: 'account.password_changed', targetType: 'staff_account', targetId: user.id, targetLabel: user.name,
+    summary: 'Changed their account password' })
   return NextResponse.json({ success: true })
 }

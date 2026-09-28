@@ -16,6 +16,8 @@ export type Permission =
   | 'users:manage'
   | 'settings:manage'
   | 'communications:send'
+  | 'activity:view'
+  | 'session:override'
 
 export interface User {
   id: string
@@ -24,6 +26,7 @@ export interface User {
   passwordHash?: string | null
   role: UserRole
   isActive: boolean
+  avatarUrl?: string | null
   createdAt: Date | string
   updatedAt: Date | string
 }

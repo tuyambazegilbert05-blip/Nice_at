@@ -7,12 +7,14 @@ import { Button } from '../../../components/ui/Button'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
+import { RestrictedActionButton } from '../../../components/ui/RestrictedAction'
 
 export default async function SessionsPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
   if (!hasPermission(user.role, 'session:view')) redirect('/dashboard')
   const sessions = await getAllSessions()
+  const canCreateSessions = hasPermission(user.role, 'session:create')
 
   return (
     <div className="space-y-6">
@@ -33,14 +35,14 @@ export default async function SessionsPage() {
             </p>
           </div>
         </div>
-        <Link href="/sessions/new">
+        {canCreateSessions ? <Link href="/sessions/new">
           <Button variant="primary" size="md" leftIcon={<Plus className="w-4 h-4" />}>
             Create Session
           </Button>
-        </Link>
+        </Link> : <RestrictedActionButton message={`Access denied: your ${user.role} role cannot create sessions. Ask an administrator or manager for access.`} variant="primary" size="md" leftIcon={<Plus className="w-4 h-4" />}>Create Session</RestrictedActionButton>}
       </div>
 
-      <SessionList sessions={sessions} />
+      <SessionList sessions={sessions} canCreate={canCreateSessions} role={user.role} />
     </div>
   )
 }

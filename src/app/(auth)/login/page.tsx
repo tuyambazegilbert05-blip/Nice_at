@@ -84,6 +84,19 @@ export default function LoginPage() {
 
   return (
     <div ref={atmosphere} className="relative space-y-4">
+      <div className="pointer-events-none absolute -top-14 right-0 z-10 flex h-24 w-32 flex-col items-center justify-center" aria-hidden="true">
+        <div data-auth-orbital className="relative flex size-20 items-center justify-center">
+          <EnergyObjectFallback className="absolute inset-0 size-full opacity-80" />
+          <div data-auth-ring className="absolute size-16 rounded-full border border-nice-blue-200/70" />
+          <div data-auth-ring className="absolute size-11 rounded-full border border-emerald-200/80" />
+          <div data-auth-ring className="absolute size-7 rounded-full bg-nice-blue-100/70 blur-lg" />
+          <div ref={logo} className="relative p-1.5">
+            <LottieIllustration name="loading" label="NiCE energy emblem" className="size-8" loop />
+          </div>
+          <span data-auth-spark className="absolute -right-1 top-4 size-2 rounded-full bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.8)]" />
+        </div>
+        <span className="-mt-1 text-center text-[8px] font-semibold uppercase tracking-[0.2em] text-slate-400">Science · Energy · People</span>
+      </div>
       <DoorReveal>
       <Card className="shadow-elevated border-slate-200">
         <CardHeader className="text-center pb-4">
@@ -94,19 +107,6 @@ export default function LoginPage() {
               alt="NiCE Club Rwanda"
               className="w-16 h-16 object-contain"
             />
-          </div>
-          <div className="relative mx-auto mb-4 mt-2 flex h-28 w-full max-w-xs items-center justify-center overflow-hidden rounded-3xl border border-nice-blue-100/80 bg-gradient-to-br from-sky-50 via-white to-emerald-50/70 shadow-inner" aria-hidden="true">
-            <div data-auth-orbital className="relative flex size-24 items-center justify-center">
-              <EnergyObjectFallback className="absolute inset-0 size-full opacity-80" />
-              <div data-auth-ring className="absolute size-16 rounded-full border border-nice-blue-200/70" />
-              <div data-auth-ring className="absolute size-11 rounded-full border border-emerald-200/80" />
-              <div data-auth-ring className="absolute size-7 rounded-full bg-nice-blue-100/70 blur-lg" />
-              <div ref={logo} className="relative rounded-full bg-white/95 p-1.5 shadow-md backdrop-blur-sm">
-                <LottieIllustration name="loading" label="NiCE energy emblem" className="size-8" loop />
-              </div>
-              <span data-auth-spark className="absolute -right-1 top-4 size-2 rounded-full bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.8)]" />
-            </div>
-            <span className="absolute bottom-2 left-0 right-0 text-center text-[9px] font-semibold uppercase tracking-[0.24em] text-slate-400">Science · Energy · People</span>
           </div>
           <CardTitle className="text-xl font-bold">Staff Sign In</CardTitle>
           <CardDescription>

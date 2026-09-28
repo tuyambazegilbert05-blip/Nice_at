@@ -2,100 +2,142 @@
 
 ## 1. Overview
 
-The persistent data layer is implemented in PostgreSQL and modeled via Prisma ORM. The schema models the complete lifecycle of organizers, scientific sessions, public attendance entries, configurable custom questions, and administrative audit trails.
+PostgreSQL is the production source of truth. The application uses parameterized SQL through the `pg` connection pool in `src/lib/database/client.ts`; it does not use Prisma. Schema changes are applied in order from `database/migrations` with `npm run db:migrate`.
 
-## 2. Entity-Relationship Diagram
+## 2. Entity relationships
 
 ```mermaid
 erDiagram
-    User ||--o{ Session : "creates"
-    User ||--o{ AuditLog : "triggers"
-    Session ||--o{ Attendance : "receives"
-    Session ||--o{ Question : "contains"
-    
-    User {
-        string id PK
-        string name
-        string email UK
-        string passwordHash
-        enum role "ADMIN, MANAGER, STAFF, VIEWER"
-        boolean isActive
-        datetime createdAt
-        datetime updatedAt
+    users ||--o{ sessions : creates
+    users ||--o{ user_invitations : invites
+    users ||--o{ activity_log : performs
+    users ||--o{ password_reset_tokens : requests
+    sessions ||--o{ session_questions : defines
+    sessions ||--o{ attendance_records : receives
+    attendance_records ||--o{ email_delivery_log : may_reference
+
+    users {
+        text id PK
+        text name
+        text email UK
+        text password_hash
+        text role
+        boolean is_active
+        text avatar_url
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    Session {
-        string id PK
-        string title
-        string description
-        enum type "LECTURE, WORKSHOP, SEMINAR, SCHOOL_OUTREACH, UNIVERSITY_SESSION, CONFERENCE, WEBINAR, TRAINING, YOUTH_EVENT, OTHER"
-        string location
-        datetime date
-        string startTime
-        string endTime
-        datetime attendanceOpens
-        datetime attendanceCloses
-        enum status "DRAFT, UPCOMING, OPEN, CLOSING_SOON, CLOSED"
-        string publicToken UK
-        enum duplicatePolicy "PREVENT_BY_EMAIL, PREVENT_BY_EMAIL_AND_PHONE, ALLOW_DUPLICATES"
-        string createdById FK
-        datetime createdAt
-        datetime updatedAt
+    sessions {
+        text id PK
+        text title
+        text description
+        text type
+        text status
+        text location
+        date session_date
+        time start_time
+        time end_time
+        timestamptz attendance_opens
+        timestamptz attendance_closes
+        timestamptz attendance_override_until
+        text public_token UK
+        text duplicate_policy
+        text created_by_id FK
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    Attendance {
-        string id PK
-        string sessionId FK
-        string fullName
-        string email
-        string phone
-        string faculty
-        string program
-        string yearOfStudy
-        string participantType
-        string keyTakeaway
-        string feedback
-        json customResponses
-        json metadata
-        datetime submittedAt
-    }
-
-    Question {
-        string id PK
-        string sessionId FK
-        string label
-        string description
-        enum type "TEXT, TEXTAREA, EMAIL, PHONE, NUMBER, SELECT, RADIO, CHECKBOX"
+    session_questions {
+        text id PK
+        text session_id FK
+        text label
+        text description
+        text question_type
         boolean required
-        json options
-        int order
-        datetime createdAt
+        jsonb options
+        integer display_order
     }
 
-    AuditLog {
-        string id PK
-        string userId FK
-        string action
-        string entity
-        string entityId
-        json metadata
-        datetime createdAt
+    attendance_records {
+        text id PK
+        text session_id FK
+        text full_name
+        text email
+        text phone
+        text faculty
+        text program
+        text year_of_study
+        text participant_type
+        text key_takeaway
+        text feedback
+        jsonb custom_responses
+        jsonb metadata
+        boolean email_updates_opt_in
+        timestamptz submitted_at
+    }
+
+    user_invitations {
+        text id PK
+        text email
+        text role
+        text token_hash UK
+        text invited_by_id FK
+        timestamptz expires_at
+        timestamptz accepted_at
+    }
+
+    password_reset_tokens {
+        text id PK
+        text user_id FK
+        text token_hash UK
+        timestamptz expires_at
+        timestamptz used_at
+    }
+
+    email_delivery_log {
+        text id PK
+        text recipient_email
+        text subject
+        text category
+        text status
+        text sent_by_id FK
+        text attendance_id FK
+        timestamptz created_at
+    }
+
+    activity_log {
+        bigint id PK
+        text actor_id FK
+        text actor_name
+        text actor_role
+        text action
+        text target_type
+        text target_id
+        text target_label
+        text summary
+        jsonb details
+        timestamptz created_at
     }
 ```
 
-## 3. Indexing Strategy
+The email log stores delivery metadata, not email message bodies or provider secrets. Activity rows keep actor name and role snapshots so an audit entry remains readable if an account is later removed. Temporary attendance extensions expire using the database timestamp; check-in validates the normal window or active override while holding the session row lock.
 
-To guarantee rapid query response times under high-volume simultaneous check-in conditions:
+## 3. Data integrity and indexes
 
-- `Session.publicToken`: Unique index for \(O(1)\) public QR verification lookup.
-- `Session.status` & `Session.date`: Composite index for rapid dashboard filtering.
-- `Attendance.sessionId` & `Attendance.email`: Index for duplicate attendance verification and session roster display.
-- `Attendance.submittedAt`: Index for real-time timeline analytics.
-- `User.email`: Unique index for authentication.
+- Staff emails are unique and normalized before lookup or persistence.
+- Public attendance tokens are random and unique; public URLs do not expose sequential database IDs.
+- Attendance rows reference sessions with `ON DELETE RESTRICT`. Session deletion explicitly removes attendance inside a transaction; session questions cascade with their session, while linked email-log history is retained with a null attendance reference.
+- Password-reset and invitation tokens are hashed before storage and expire.
+- Check-in and session mutations use server-side role checks. Activity-log reads are admin-only.
+- Session status/date, attendance session/submission time, email delivery time, activity time/actor, and token lookup fields have supporting indexes in the migration set.
 
-## 4. Duplicate Prevention Logic
+## 4. Duplicate attendance policy
 
-Configured per-session:
-1. `PREVENT_BY_EMAIL` (default): Checks `(sessionId, normalizedEmail)`.
-2. `PREVENT_BY_EMAIL_AND_PHONE`: Checks `(sessionId, normalizedEmail)` OR `(sessionId, normalizedPhone)`.
-3. `ALLOW_DUPLICATES`: Permits multiple participations (e.g. continuous multi-day or repeated lab entries).
+Each session chooses one policy:
+
+1. `PREVENT_BY_EMAIL` (default): reject a repeat email for the same session.
+2. `PREVENT_BY_EMAIL_AND_PHONE`: reject a matching email or phone for the same session.
+3. `ALLOW_DUPLICATES`: accept repeat submissions.
+
+The server locks the session row while it evaluates the current attendance window, checks duplicates, and inserts a check-in. This serializes competing submissions and an administrator closing a temporary extension.

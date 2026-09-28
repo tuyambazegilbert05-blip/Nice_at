@@ -8,11 +8,13 @@ import { getAllSessions } from '../../../lib/sessions/session-service'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
+import { RestrictedActionButton } from '../../../components/ui/RestrictedAction'
 
 export default async function AttendancePage() {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
   if (!hasPermission(user.role, 'attendance:view')) redirect('/dashboard')
+  const canExport = hasPermission(user.role, 'attendance:export')
   const [records, sessions] = await Promise.all([getAllAttendance(), getAllSessions()])
   const sessionTitles = new Map(sessions.map((session) => [session.id, session.title]))
   return (
@@ -34,11 +36,11 @@ export default async function AttendancePage() {
             </p>
           </div>
         </div>
-        <a href="/api/exports" download="nice-attendance-master.csv">
+        {canExport ? <a href="/api/exports" download="nice-attendance-master.csv">
           <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>
             Export Master CSV
           </Button>
-        </a>
+        </a> : <RestrictedActionButton message={`Access denied: your ${user.role} role cannot export attendance records. Ask an administrator or manager for access.`} variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export Master CSV</RestrictedActionButton>}
       </div>
 
       <Card>

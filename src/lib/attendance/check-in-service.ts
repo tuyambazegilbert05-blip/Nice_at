@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { Attendance, AttendanceSubmission } from '../../types/attendance'
 import { getSessionByPublicToken } from '../sessions/session-service'
-import { isWithinAttendanceWindow } from '../../utils/date'
 import { query, withTransaction } from '../database/client'
 
 type AttendanceRow = {
@@ -32,17 +31,21 @@ export async function recordAttendance(submission: AttendanceSubmission): Promis
   if (submission.honeypot?.trim()) return { success: false, error: 'Invalid submission request', code: 'BOT_DETECTED' }
   const session = await getSessionByPublicToken(submission.token)
   if (!session) return { success: false, error: 'Session not found or invalid token', code: 'SESSION_NOT_FOUND' }
-  if (!['OPEN', 'CLOSING_SOON'].includes(session.status) || !isWithinAttendanceWindow(session.attendanceOpens, session.attendanceCloses).isOpen) {
-    return { success: false, error: 'Attendance window is not currently open', code: 'WINDOW_CLOSED' }
-  }
-
   const email = submission.email.trim().toLowerCase()
   const phone = submission.phone.trim().replace(/\s+/g, '')
   try {
     const record = await withTransaction(async (client) => {
-      const locked = await client.query('SELECT duplicate_policy FROM sessions WHERE id=$1 FOR UPDATE', [session.id])
+      const locked = await client.query<{ duplicate_policy: typeof session.duplicatePolicy; status: string; within_window: boolean; override_active: boolean }>(
+        `SELECT duplicate_policy,status,
+          (now() >= attendance_opens AND now() <= attendance_closes) AS within_window,
+          (attendance_override_until IS NOT NULL AND attendance_override_until > now()) AS override_active
+         FROM sessions WHERE id=$1 FOR UPDATE`, [session.id],
+      )
       if (!locked.rowCount) throw new Error('SESSION_NOT_FOUND')
-      const policy = locked.rows[0].duplicate_policy as typeof session.duplicatePolicy
+      const current = locked.rows[0]
+      const scheduledOpen = ['OPEN', 'CLOSING_SOON'].includes(current.status) && current.within_window
+      if (!scheduledOpen && !current.override_active) throw new Error('WINDOW_CLOSED')
+      const policy = current.duplicate_policy
       if (policy !== 'ALLOW_DUPLICATES') {
         const existing = await client.query(
           `SELECT 1 FROM attendance_records WHERE session_id=$1 AND
@@ -68,6 +71,7 @@ export async function recordAttendance(submission: AttendanceSubmission): Promis
     const code = error instanceof Error ? error.message : ''
     if (code === 'DUPLICATE_ENTRY') return { success: false, error: 'An attendance record with this email or phone already exists for this session', code }
     if (code === 'SESSION_NOT_FOUND') return { success: false, error: 'Session not found or invalid token', code }
+    if (code === 'WINDOW_CLOSED') return { success: false, error: 'Attendance window is not currently open', code }
     if ((error as { code?: string })?.code === '23505') return { success: false, error: 'Duplicate attendance record', code: 'DUPLICATE_ENTRY' }
     throw error
   }

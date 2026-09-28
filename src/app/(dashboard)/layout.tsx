@@ -1,8 +1,6 @@
 import React from 'react'
 import { Sidebar } from '../../components/navigation/Sidebar'
 import { Header } from '../../components/navigation/Header'
-import { PageTransition } from '../../motion/gsap/PageTransition'
-import { DoorReveal } from '../../motion/gsap/DoorReveal'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,9 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Header />
         <main data-scroll-container className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/60">
           <div className="max-w-7xl mx-auto space-y-8">
-            <DoorReveal>
-              <PageTransition>{children}</PageTransition>
-            </DoorReveal>
+            {children}
           </div>
         </main>
       </div>

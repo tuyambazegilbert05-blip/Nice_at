@@ -1,10 +1,10 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '../../../lib/auth'
-import { hasPermission } from '../../../lib/permissions/rbac'
 import { query } from '../../../lib/database/client'
 import { deliverBrandedEmail } from '../../../lib/email/brevo'
 import { UserRole } from '../../../types/user'
+import { recordActivity } from '../../../lib/activity/activity-service'
 
 const ROLES: UserRole[] = ['ADMIN', 'MANAGER', 'STAFF', 'VIEWER']
 
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
-    if (!hasPermission(user.role, 'users:manage')) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    if (user.role !== 'ADMIN') return NextResponse.json({ success: false, error: 'Only administrators can invite staff.' }, { status: 403 })
 
     const body = await request.json() as { email?: string; name?: string; role?: UserRole }
     const email = body.email?.trim().toLowerCase()
@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
        VALUES($1,$2,$3,$4,$5,$6,now()+interval '7 days')`,
       [id, email, name || null, body.role, tokenHash, user.id],
     )
+    await recordActivity({ actor: user, action: 'staff.invited', targetType: 'invitation', targetId: id, targetLabel: email,
+      summary: `Invited ${name || email} as ${body.role}`, details: { email, assignedRole: body.role, invitationExpiresInDays: 7 } })
 
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/invite/${token}`
     const result = await deliverBrandedEmail({

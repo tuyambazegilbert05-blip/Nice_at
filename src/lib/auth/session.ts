@@ -95,7 +95,7 @@ export async function requireAuth(minimumRole?: UserRole): Promise<AuthUser> {
 
 export async function getAllUsers(): Promise<User[]> {
   const result = await query<User>(
-    'SELECT id,name,email,role,is_active AS "isActive",created_at AS "createdAt",updated_at AS "updatedAt" FROM users ORDER BY name',
+    'SELECT id,name,email,role,is_active AS "isActive",avatar_url AS "avatarUrl",created_at AS "createdAt",updated_at AS "updatedAt" FROM users ORDER BY name',
   )
   return result.rows
 }

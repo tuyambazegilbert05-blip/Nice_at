@@ -54,6 +54,7 @@ export interface Session {
   endTime: string   // "HH:mm" in Kigali time
   attendanceOpens: Date | string
   attendanceCloses: Date | string
+  attendanceOverrideUntil?: Date | string | null
   status: SessionStatus
   publicToken: string
   duplicatePolicy: DuplicatePolicy

@@ -52,7 +52,11 @@ export async function GET(request: NextRequest) {
     if (session && token) {
       const windowState = isWithinAttendanceWindow(session.attendanceOpens, session.attendanceCloses)
       const statusAllowsCheckIn = ['OPEN', 'CLOSING_SOON'].includes(session.status)
-      const attendanceState = session.status === 'CLOSED'
+      const overrideActive = !!session.attendanceOverrideUntil && new Date(session.attendanceOverrideUntil).getTime() > Date.now()
+      const canAcceptAttendance = overrideActive || (statusAllowsCheckIn && windowState.isOpen)
+      const attendanceState = overrideActive
+        ? 'open'
+        : session.status === 'CLOSED'
         ? 'closed'
         : windowState.isBefore
           ? 'scheduled'
@@ -72,7 +76,7 @@ export async function GET(request: NextRequest) {
         attendanceOpens: new Date(session.attendanceOpens).toISOString(),
         attendanceCloses: new Date(session.attendanceCloses).toISOString(),
         status: session.status,
-        isOpen: statusAllowsCheckIn && windowState.isOpen,
+        isOpen: canAcceptAttendance,
         attendanceState,
       }
     }

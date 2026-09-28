@@ -8,12 +8,15 @@ import { Button } from '../ui/Button'
 import { Session, SessionStatus } from '../../types/session'
 import { useFlipLayout } from '../../motion/gsap/useFlip'
 import { StaggerReveal } from '../../motion/gsap/ScrollReveal'
+import { RestrictedActionButton } from '../ui/RestrictedAction'
 
 interface SessionListProps {
   sessions: Session[]
+  canCreate?: boolean
+  role?: string
 }
 
-export function SessionList({ sessions }: SessionListProps) {
+export function SessionList({ sessions, canCreate = false, role = 'current' }: SessionListProps) {
   const [filter, setFilter] = useState<'ALL' | SessionStatus>('ALL')
   const [search, setSearch] = useState('')
 
@@ -82,11 +85,11 @@ export function SessionList({ sessions }: SessionListProps) {
               ? 'Try adjusting your search criteria or filter options.'
               : 'Create your first NiCE session to start collecting verified attendance.'}
           </p>
-          <Link href="/sessions/new" className="mt-4">
+          {canCreate ? <Link href="/sessions/new" className="mt-4">
             <Button variant="primary" size="sm" leftIcon={<Plus className="w-4 h-4" />}>
               Create Session
             </Button>
-          </Link>
+          </Link> : <RestrictedActionButton message={`Access denied: your ${role} role cannot create sessions. Ask an administrator or manager for access.`} className="mt-4" variant="primary" size="sm" leftIcon={<Plus className="w-4 h-4" />}>Create Session</RestrictedActionButton>}
         </div>
       )}
     </div>

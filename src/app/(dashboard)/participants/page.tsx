@@ -7,11 +7,13 @@ import { getAllAttendance } from '../../../lib/attendance/check-in-service'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
+import { RestrictedActionButton } from '../../../components/ui/RestrictedAction'
 
 export default async function ParticipantsPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
   if (!hasPermission(user.role, 'attendance:view')) redirect('/dashboard')
+  const canExport = hasPermission(user.role, 'attendance:export')
   const attendance = await getAllAttendance()
   const participants = new Map<string, { name: string; email: string; type: string; faculty: string | null; sessions: Set<string>; lastAttended: string }>()
   for (const record of attendance) {
@@ -36,9 +38,9 @@ export default async function ParticipantsPage() {
             Directory of attendees, students, researchers, and clean energy enthusiasts.
           </p>
         </div>
-        <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>
+        {canExport ? <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>
           Export Directory
-        </Button>
+        </Button> : <RestrictedActionButton message={`Access denied: your ${user.role} role cannot export participant records. Ask an administrator or manager for access.`} variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export Directory</RestrictedActionButton>}
       </div>
 
       <Card>

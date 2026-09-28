@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Sparkles } from 'lucide-react'
@@ -10,6 +10,9 @@ import { Button } from '../../../../components/ui/Button'
 import { SessionType, DuplicatePolicy } from '../../../../types/session'
 import { StepTransition } from '../../../../motion/gsap/StepTransition'
 import { TextReveal } from '../../../../motion/gsap/TextReveal'
+import { ROLE_PERMISSIONS } from '../../../../lib/permissions/roles'
+import type { UserRole } from '../../../../types/user'
+import { RestrictedActionPanel } from '../../../../components/ui/RestrictedAction'
 
 function getKigaliDate(): string {
   const parts = new Intl.DateTimeFormat('en', {
@@ -21,6 +24,9 @@ function getKigaliDate(): string {
 
 export default function NewSessionPage() {
   const router = useRouter()
+  const [canCreate, setCanCreate] = useState(false)
+  const [accessChecked, setAccessChecked] = useState(false)
+  const [accessMessage, setAccessMessage] = useState('')
   const [step, setStep] = useState(1)
   const [stepDirection, setStepDirection] = useState<1 | -1>(1)
   const goToStep = (nextStep: number) => {
@@ -52,8 +58,32 @@ export default function NewSessionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth')
+      .then(async (response) => {
+        const result = await response.json()
+        if (!response.ok || !result.user?.role) throw new Error('Access denied: unable to verify your session creation permission.')
+        const role = result.user.role as UserRole
+        const allowed = ROLE_PERMISSIONS[role]?.includes('session:create') ?? false
+        if (!cancelled) {
+          setCanCreate(allowed)
+          setAccessMessage(allowed ? '' : `Access denied: your ${role} role cannot create sessions. Ask an administrator or manager for access.`)
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setAccessMessage(error instanceof Error ? error.message : 'Access denied: could not verify your permissions.')
+      })
+      .finally(() => { if (!cancelled) setAccessChecked(true) })
+    return () => { cancelled = true }
+  }, [])
+
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canCreate) {
+      setSubmitError(accessMessage || 'Access denied: your role cannot create sessions.')
+      return
+    }
     setSubmitting(true)
     setSubmitError('')
     try {
@@ -101,12 +131,16 @@ export default function NewSessionPage() {
       </div>
 
       {/* Wizard Step Progress */}
-      <div className="grid grid-cols-4 gap-2">
+      <RestrictedActionPanel
+        enabled={accessChecked && !canCreate}
+        message={accessMessage || 'Access denied: your role cannot create sessions.'}
+      ><div className="grid grid-cols-4 gap-2">
         {steps.map((s) => (
           <button
             key={s.num}
+            disabled={!canCreate}
             onClick={() => goToStep(s.num)}
-            className={`p-3 rounded-xl border text-left transition-all ${
+            className={`p-3 rounded-xl border text-left transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
               step === s.num
                 ? 'bg-nice-blue-50/80 border-nice-blue-400 text-nice-blue-900 shadow-subtle'
                 : step > s.num
@@ -121,11 +155,17 @@ export default function NewSessionPage() {
             <p className="text-xs font-semibold mt-0.5 truncate">{s.label}</p>
           </button>
         ))}
-      </div>
+      </div></RestrictedActionPanel>
 
       {/* Step Form Cards */}
       <Card className="shadow-elevated border-slate-200">
         <CardContent className="p-6 sm:p-8">
+          {!accessChecked && <p role="status" className="mb-4 text-sm text-slate-500">Checking session creation access…</p>}
+          {!accessChecked && <p role="status" className="mb-4 text-sm text-slate-500">Checking session creation access…</p>}
+          <RestrictedActionPanel
+            enabled={accessChecked && !canCreate}
+            message={accessMessage || 'Access denied: your role cannot create sessions.'}
+          ><fieldset disabled={!canCreate || submitting} className="block min-w-0 w-full border-0 p-0">
           <StepTransition step={step} direction={stepDirection}>
           {step === 1 && (
             <div className="space-y-4">
@@ -345,6 +385,7 @@ export default function NewSessionPage() {
             </div>
           )}
           </StepTransition>
+          </fieldset></RestrictedActionPanel>
         </CardContent>
       </Card>
     </div>

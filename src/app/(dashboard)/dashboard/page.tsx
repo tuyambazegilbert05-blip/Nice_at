@@ -5,27 +5,27 @@ import { StatCard } from '../../../components/ui/StatCard'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
 import { Badge } from '../../../components/ui/Badge'
-import { getAllSessions } from '../../../lib/sessions/session-service'
-import { getAllAttendance } from '../../../lib/attendance/check-in-service'
+import { getDashboardOverview } from '../../../lib/dashboard/dashboard-service'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { redirect } from 'next/navigation'
-import { StaggerReveal } from '../../../motion/gsap/ScrollReveal'
+import { RestrictedActionButton } from '../../../components/ui/RestrictedAction'
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
   if (!hasPermission(user.role, 'attendance:view')) redirect('/login')
-  const [sessions, attendance] = await Promise.all([getAllSessions(), getAllAttendance()])
-  const thisMonthAttendees = attendance.filter((record) => {
-    const date = new Date(record.submittedAt)
-    const now = new Date()
-    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
-  }).length
-  const averageAttendance = sessions.length ? Math.round(attendance.length / sessions.length) : 0
-  const recentSessions = sessions.slice(0, 5)
+  const canCreateSessions = hasPermission(user.role, 'session:create')
+  const overview = await getDashboardOverview()
   return (
-    <StaggerReveal className="space-y-8">
+    <div className="space-y-8">
+      {overview.hasDataError && (
+        <div role="alert" className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <p>Some dashboard data couldn’t be loaded. Available sections remain visible; try again to refresh the data.</p>
+          <a href="/dashboard" className="shrink-0 font-semibold underline underline-offset-2">Retry loading</a>
+        </div>
+      )}
+
       {/* Welcome Banner */}
       <div data-motion-item className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
@@ -33,15 +33,15 @@ export default async function DashboardPage() {
             Operational Overview
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            NiCE Club Rwanda — Clean energy session attendance and engagement intelligence.
+            NiCE Club Rwanda - Clean energy session attendance and engagement intelligence.
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          <Link href="/sessions/new">
+          {canCreateSessions ? <Link href="/sessions/new">
             <Button variant="primary" size="md" leftIcon={<Plus className="w-4 h-4" />}>
               Create Session
             </Button>
-          </Link>
+          </Link> : <RestrictedActionButton message={`Access denied: your ${user.role} role cannot create sessions. Ask an administrator or manager for access.`} variant="primary" size="md" leftIcon={<Plus className="w-4 h-4" />}>Create Session</RestrictedActionButton>}
         </div>
       </div>
 
@@ -49,25 +49,25 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Sessions"
-          value={sessions.length.toLocaleString()}
+          value={overview.totalSessions?.toLocaleString() ?? '—'}
           subtitle="All recorded events"
           icon={<CalendarDays className="w-5 h-5 text-nice-blue-600" />}
         />
         <StatCard
           title="Total Attendees"
-          value={attendance.length.toLocaleString()}
+          value={overview.totalAttendees?.toLocaleString() ?? '—'}
           subtitle="Verified check-ins"
           icon={<Users className="w-5 h-5 text-nice-blue-600" />}
         />
         <StatCard
           title="This Month"
-          value={thisMonthAttendees.toLocaleString()}
+          value={overview.thisMonthAttendees?.toLocaleString() ?? '—'}
           subtitle="Current calendar month"
           icon={<CheckCircle className="w-5 h-5 text-emerald-600" />}
         />
         <StatCard
           title="Average Attendance"
-          value={averageAttendance.toLocaleString()}
+          value={overview.averageAttendance?.toLocaleString() ?? '—'}
           subtitle="Per published session"
           icon={<TrendingUp className="w-5 h-5 text-nice-blue-600" />}
         />
@@ -88,7 +88,7 @@ export default async function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent>
-              {recentSessions.length === 0 ? <div className="py-12 text-center flex flex-col items-center justify-center">
+              {overview.recentSessions === null ? <div role="status" className="py-10 text-center text-sm text-slate-600">Recent sessions could not be loaded.</div> : overview.recentSessions.length === 0 ? <div className="py-12 text-center flex flex-col items-center justify-center">
                 <div className="w-12 h-12 rounded-2xl bg-nice-blue-50 border border-nice-blue-100 flex items-center justify-center text-nice-blue-600 mb-3">
                   <CalendarDays className="w-6 h-6" />
                 </div>
@@ -96,13 +96,13 @@ export default async function DashboardPage() {
                 <p className="text-xs text-slate-500 max-w-sm mt-1">
                   Create your first NiCE session to schedule events, generate branded QR codes, and collect attendance.
                 </p>
-                <Link href="/sessions/new" className="mt-4">
+                {canCreateSessions ? <Link href="/sessions/new" className="mt-4">
                   <Button variant="outline" size="sm" leftIcon={<Plus className="w-4 h-4" />}>
                     Create Your First Session
                   </Button>
-                </Link>
+                </Link> : <RestrictedActionButton message={`Access denied: your ${user.role} role cannot create sessions. Ask an administrator or manager for access.`} className="mt-4" variant="outline" size="sm" leftIcon={<Plus className="w-4 h-4" />}>Create Your First Session</RestrictedActionButton>}
               </div> : <div className="divide-y divide-slate-100">
-                {recentSessions.map((session) => <Link key={session.id} href={`/sessions/${session.id}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                {overview.recentSessions.map((session) => <Link key={session.id} href={`/sessions/${session.id}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-800">{session.title}</p><p className="mt-1 text-xs text-slate-500">{String(session.date)} · {session.location}</p></div>
                   <Badge variant={session.status === 'OPEN' ? 'success' : 'neutral'} size="sm">{session.status.replace('_', ' ')}</Badge>
                 </Link>)}
@@ -166,6 +166,6 @@ export default async function DashboardPage() {
           </Card>
         </div>
       </div>
-    </StaggerReveal>
+    </div>
   )
 }

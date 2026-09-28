@@ -12,6 +12,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'session:create',
     'session:edit',
     'session:delete',
+    'session:override',
     'session:view',
     'attendance:view',
     'attendance:record',
@@ -20,6 +21,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'users:manage',
     'settings:manage',
     'communications:send',
+    'activity:view',
   ],
   MANAGER: [
     'session:create',
@@ -29,12 +31,16 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'attendance:record',
     'attendance:export',
     'qr:generate',
+    'communications:send',
   ],
   STAFF: [
+    'session:create',
+    'session:edit',
     'session:view',
     'attendance:view',
     'attendance:record',
     'qr:generate',
+    'communications:send',
   ],
   VIEWER: [
     'session:view',
@@ -45,18 +51,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 export const ROLE_DESCRIPTIONS: Record<UserRole, { title: string; description: string }> = {
   ADMIN: {
     title: 'Administrator',
-    description: 'Full organizational authority across all sessions, team permissions, data exports, and audit settings.',
+    description: 'Full organizational authority, including session content editing, temporary attendance extensions, deletion with attendee records, staff invitations, role management, and communications.',
   },
   MANAGER: {
     title: 'Session Manager',
-    description: 'Can create and configure scientific sessions, generate custom questions, and export attendance records.',
+    description: 'Can manage scientific sessions, export attendance, and use the full communications section. Staff invitations are administrator-only.',
   },
   STAFF: {
     title: 'Field Coordinator / Staff',
-    description: 'Can manage live event check-ins, project QR flyers, and assist attendees on-site across Rwanda.',
+    description: 'Can create and manage sessions, coordinate live check-ins, and use communications. Session deletion and staff invitations are administrator-only.',
   },
   VIEWER: {
     title: 'Executive Viewer',
-    description: 'Read-only visibility into published sessions, real-time dashboard counts, and aggregated analytics.',
+    description: 'Read-only visibility into published sessions, dashboard counts, and aggregated analytics. Communications are unavailable.',
   },
 }

@@ -12,19 +12,32 @@ import {
   Sparkles,
   Lock,
   UserPlus,
+  Pencil,
+  Save,
+  X,
+  ClipboardList,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
+import { RestrictedActionPanel } from '../../../components/ui/RestrictedAction'
 import { Badge } from '../../../components/ui/Badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../components/ui/Table'
 import { ROLE_DESCRIPTIONS, ROLE_PERMISSIONS } from '../../../lib/permissions/roles'
 import { formatInitials } from '../../../utils/format'
 import { User, UserRole } from '../../../types/user'
+import ActivityLogPanel from '../../../components/settings/ActivityLogPanel'
 
-type SettingsTab = 'team' | 'permissions' | 'organization'
+type SettingsTab = 'team' | 'permissions' | 'organization' | 'activity'
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('team')
+  const [currentRole, setCurrentRole] = useState<UserRole | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [users, setUsers] = useState<User[]>([])
+  const [teamLoading, setTeamLoading] = useState(true)
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null)
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, UserRole>>({})
+  const [savingRoleId, setSavingRoleId] = useState<string | null>(null)
+  const [roleMessages, setRoleMessages] = useState<Record<string, { kind: 'success' | 'error'; text: string }>>({})
   const [teamError, setTeamError] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
@@ -34,6 +47,10 @@ export default function SettingsPage() {
 
   async function sendInvitation(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (currentRole !== 'ADMIN') {
+      setInviteStatus('Only administrators can invite staff.')
+      return
+    }
     setInviteStatus('')
     setInviting(true)
     try {
@@ -51,23 +68,69 @@ export default function SettingsPage() {
     } finally { setInviting(false) }
   }
 
-  useEffect(() => {
-    fetch('/api/team').then(async (response) => {
+  async function saveUserRole(userId: string) {
+    if (currentRole !== 'ADMIN') {
+      setRoleMessages((current) => ({ ...current, [userId]: { kind: 'error', text: 'Access denied: only administrators can change staff roles.' } }))
+      return
+    }
+    const role = roleDrafts[userId]
+    if (!role) return
+    setSavingRoleId(userId)
+    setRoleMessages((current) => ({ ...current, [userId]: { kind: 'success', text: '' } }))
+    try {
+      const response = await fetch('/api/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role }),
+      })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Unable to load staff directory')
-      setUsers(result.data)
-    }).catch((error) => setTeamError(error instanceof Error ? error.message : 'Unable to load staff directory'))
+      if (!response.ok) throw new Error(result.error || 'Could not update staff role.')
+      if (result.data) setUsers((current) => current.map((user) => user.id === userId ? result.data as User : user))
+      setEditingRoleId(null)
+      setRoleMessages((current) => ({ ...current, [userId]: { kind: 'success', text: result.message || 'Staff role updated.' } }))
+    } catch (error) {
+      setRoleMessages((current) => ({ ...current, [userId]: { kind: 'error', text: error instanceof Error ? error.message : 'Could not update staff role.' } }))
+    } finally {
+      setSavingRoleId(null)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadSettingsAccess() {
+      try {
+        const authResponse = await fetch('/api/auth')
+        const auth = await authResponse.json()
+        if (!authResponse.ok || !auth.user) throw new Error('Unable to verify account permissions.')
+        const role = auth.user.role as UserRole
+        if (cancelled) return
+        setCurrentRole(role)
+        setCurrentUserId(auth.user.id as string)
+
+        const teamResponse = await fetch('/api/team')
+        const result = await teamResponse.json()
+        if (!teamResponse.ok) throw new Error(result.error || 'Unable to load staff directory')
+        if (!cancelled) setUsers(result.data)
+      } catch (error) {
+        if (!cancelled) setTeamError(error instanceof Error ? error.message : 'Unable to load settings access')
+      }
+    }
+    void loadSettingsAccess().finally(() => { if (!cancelled) setTeamLoading(false) })
+    return () => { cancelled = true }
   }, [])
 
   const capabilities = [
     { key: 'session:create', label: 'Create & Publish Sessions', description: 'Schedule new lectures, workshops, and youth outreach' },
     { key: 'session:edit', label: 'Edit Active Sessions', description: 'Update venues, dates, Kigali timings, and descriptions' },
-    { key: 'session:delete', label: 'Archive / Delete Sessions', description: 'Retire sessions and close participation windows' },
+    { key: 'session:delete', label: 'Delete Sessions & Attendee Data (Admin only)', description: 'Permanently remove a session, its check-in records, and session questions' },
+    { key: 'session:override', label: 'Extend Check-in Window (Admin only)', description: 'Temporarily accept attendance outside scheduled check-in hours' },
     { key: 'attendance:view', label: 'View Attendee Rosters', description: 'Inspect real-time check-in entries and attendee reflections' },
     { key: 'attendance:record', label: 'Conduct Attendee Check-In', description: 'Assist participants with mobile attendance registration' },
     { key: 'attendance:export', label: 'Export Data (CSV / Excel)', description: 'Download complete participant records and contact information' },
     { key: 'qr:generate', label: 'Generate Branded QR & Flyers', description: 'Produce 1200x1650 print-ready promotional posters' },
-    { key: 'users:manage', label: 'Manage Team & Assign Roles', description: 'Invite staff members and adjust authorization levels' },
+    { key: 'users:manage', label: 'Manage Team & Assign Roles (Admin only)', description: 'Invite staff members and adjust authorization levels' },
+    { key: 'communications:send', label: 'Use Full Communications', description: 'Manage recipients, preview messages, and send branded updates' },
+    { key: 'activity:view', label: 'View Staff Activity Log (Admin only)', description: 'Review who performed staff actions and when' },
     { key: 'settings:manage', label: 'Platform & Security Settings', description: 'Configure organization defaults and security policies' },
   ]
 
@@ -104,7 +167,7 @@ export default function SettingsPage() {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>Staff Directory ({users.length})</span>
+          <span>{currentRole === 'ADMIN' ? `Staff Directory (${users.length})` : 'Team Access'}</span>
         </button>
 
         <button
@@ -128,17 +191,46 @@ export default function SettingsPage() {
           }`}
         >
           <Building className="w-4 h-4" />
-          <span>Organization Profile</span>
+          <span>Platform Defaults</span>
         </button>
+
+        {currentRole === 'ADMIN' && <button
+          onClick={() => setActiveTab('activity')}
+          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors ${
+            activeTab === 'activity'
+              ? 'border-nice-blue-600 text-nice-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <ClipboardList className="w-4 h-4" />
+          <span>Activity Log</span>
+        </button>}
       </div>
 
       {/* Tab 1: Staff Directory */}
       {activeTab === 'team' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          <Card>
+          {currentRole === null && <p className={teamError ? 'text-sm text-rose-700' : 'text-sm text-slate-500'} role={teamError ? 'alert' : 'status'}>{teamError || 'Checking staff directory access…'}</p>}
+          {currentRole !== null && currentRole !== 'ADMIN' && <Card>
             <CardHeader>
               <CardTitle>Invite a team member</CardTitle>
-              <CardDescription>Choose an access role. The invitation link expires after seven days.</CardDescription>
+              <CardDescription>Staff invitations are restricted to administrators.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <RestrictedActionPanel message={`Access denied: your ${ROLE_DESCRIPTIONS[currentRole].title} role cannot invite staff. Ask an administrator to send the invitation.`}>
+              <fieldset disabled aria-disabled="true" className="grid grid-cols-1 gap-3 opacity-70 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+                <label className="text-xs font-semibold text-slate-700">Email address<input type="email" readOnly placeholder="Admin access required" className="mt-1.5 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm" /></label>
+                <label className="text-xs font-semibold text-slate-700">Name (optional)<input readOnly placeholder="Admin access required" className="mt-1.5 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm" /></label>
+                <label className="text-xs font-semibold text-slate-700">Role<select disabled defaultValue="STAFF" className="mt-1.5 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm"><option value="STAFF">Field Coordinator / Staff</option></select></label>
+                <button type="button" disabled className="rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white opacity-50">Send invitation</button>
+              </fieldset>
+              </RestrictedActionPanel>
+            </CardContent>
+          </Card>}
+          {currentRole === 'ADMIN' && <Card>
+            <CardHeader>
+              <CardTitle>Invite a team member</CardTitle>
+              <CardDescription>Administrator-only. The invitation link expires after seven days.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={sendInvitation} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
@@ -149,17 +241,17 @@ export default function SettingsPage() {
               </form>
               {inviteStatus && <p role="status" className="mt-3 text-sm text-slate-700">{inviteStatus}</p>}
             </CardContent>
-          </Card>
-          <Card>
+          </Card>}
+          {currentRole !== null && <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle>Authorized Staff Accounts</CardTitle>
+                <CardTitle>{currentRole === 'ADMIN' ? 'Authorized Staff Accounts' : 'Current Staff Members'}</CardTitle>
                 <CardDescription>
-                  Verified NiCE Club team members with access to the operations platform.
+                  {currentRole === 'ADMIN' ? 'Verified NiCE Club team members with access to the operations platform.' : 'Read-only directory of staff accounts currently registered on the platform.'}
                 </CardDescription>
               </div>
               <Badge variant="info" size="sm">
-                {users.filter((user) => user.isActive).length} Active Accounts
+                {teamLoading ? 'Loading…' : `${users.filter((user) => user.isActive).length} Active Accounts`}
               </Badge>
             </CardHeader>
             <CardContent>
@@ -168,44 +260,56 @@ export default function SettingsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Staff Member</TableHead>
-                    <TableHead>Email Address</TableHead>
+                    {currentRole === 'ADMIN' && <TableHead>Email Address</TableHead>}
                     <TableHead>Role</TableHead>
+                    {currentRole === 'ADMIN' && <TableHead>Role Actions</TableHead>}
                     <TableHead>Status</TableHead>
                     <TableHead>Permissions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.length === 0 && !teamError && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-slate-500">No staff accounts have been created.</TableCell></TableRow>}
+                  {teamLoading && <TableRow><TableCell colSpan={currentRole === 'ADMIN' ? 6 : 4} className="py-8 text-center text-sm text-slate-500">Loading staff members…</TableCell></TableRow>}
+                  {!teamLoading && users.length === 0 && !teamError && <TableRow><TableCell colSpan={currentRole === 'ADMIN' ? 6 : 4} className="py-8 text-center text-sm text-slate-500">No staff accounts have been created.</TableCell></TableRow>}
                   {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 rounded-lg bg-nice-blue-50 border border-nice-blue-200 text-nice-blue-700 font-bold text-xs flex items-center justify-center">
-                            {formatInitials(user.name)}
+                          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-nice-blue-200 bg-nice-blue-50 text-xs font-bold text-nice-blue-700">
+                            <span aria-hidden="true">{formatInitials(user.name)}</span>
+                            {user.avatarUrl && (
+                              <img
+                                src={user.avatarUrl}
+                                alt=""
+                                className="absolute inset-0 h-full w-full object-cover"
+                                onError={(event) => { event.currentTarget.style.display = 'none' }}
+                              />
+                            )}
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800 text-xs">{user.name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono">{user.id}</p>
+                            {currentRole === 'ADMIN' && <p className="text-[10px] text-slate-400 font-mono">{user.id}</p>}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-slate-600 font-mono text-xs">{user.email}</TableCell>
+                      {currentRole === 'ADMIN' && <TableCell className="text-slate-600 font-mono text-xs">{user.email}</TableCell>}
                       <TableCell>
-                        <Badge
-                          variant={
-                            user.role === 'ADMIN'
-                              ? 'info'
-                              : user.role === 'MANAGER'
-                              ? 'default'
-                              : user.role === 'STAFF'
-                              ? 'success'
-                              : 'neutral'
-                          }
+                        {editingRoleId === user.id ? <select
+                          aria-label={`New role for ${user.name}`}
+                          value={roleDrafts[user.id] ?? user.role}
+                          onChange={(event) => setRoleDrafts((current) => ({ ...current, [user.id]: event.target.value as UserRole }))}
+                          className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                        >{(['ADMIN', 'MANAGER', 'STAFF', 'VIEWER'] as UserRole[]).map((role) => <option key={role} value={role}>{role}</option>)}</select> : <Badge
+                          variant={user.role === 'ADMIN' ? 'info' : user.role === 'MANAGER' ? 'default' : user.role === 'STAFF' ? 'success' : 'neutral'}
                           size="sm"
-                        >
-                          {user.role}
-                        </Badge>
+                        >{user.role}</Badge>}
                       </TableCell>
+                      {currentRole === 'ADMIN' && <TableCell>
+                        {user.id === currentUserId ? <span className="text-xs text-slate-400">Your account</span> : editingRoleId === user.id ? <div className="flex items-center gap-1.5">
+                          <button type="button" onClick={() => void saveUserRole(user.id)} disabled={savingRoleId !== null} className="inline-flex items-center gap-1 rounded-md bg-sky-700 px-2 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50"><Save className="h-3.5 w-3.5" />{savingRoleId === user.id ? 'Saving…' : 'Save'}</button>
+                          <button type="button" onClick={() => setEditingRoleId(null)} disabled={savingRoleId !== null} aria-label="Cancel role change" className="rounded-md border border-slate-300 p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50"><X className="h-3.5 w-3.5" /></button>
+                        </div> : <button type="button" onClick={() => { setRoleDrafts((current) => ({ ...current, [user.id]: user.role })); setEditingRoleId(user.id); setRoleMessages((current) => ({ ...current, [user.id]: { kind: 'success', text: '' } })) }} disabled={savingRoleId !== null} className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"><Pencil className="h-3.5 w-3.5" />Change role</button>}
+                        {roleMessages[user.id]?.text && <p role={roleMessages[user.id].kind === 'error' ? 'alert' : 'status'} className={`mt-1 max-w-44 text-[11px] ${roleMessages[user.id].kind === 'error' ? 'text-rose-700' : 'text-emerald-700'}`}>{roleMessages[user.id].text}</p>}
+                      </TableCell>}
                       <TableCell>
                         <Badge variant={user.isActive ? 'success' : 'neutral'} size="sm" dot>
                           {user.isActive ? 'Active' : 'Inactive'}
@@ -219,7 +323,7 @@ export default function SettingsPage() {
                 </TableBody>
               </Table>
             </CardContent>
-          </Card>
+          </Card>}
         </div>
       )}
 
@@ -296,13 +400,13 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Tab 3: Organization Profile */}
+      {/* Tab 3: Platform Defaults */}
       {activeTab === 'organization' && (
         <div className="space-y-6 animate-in fade-in duration-200">
           <Card>
             <CardHeader>
-              <CardTitle>Organization Details</CardTitle>
-              <CardDescription>Canonical organizational attributes and defaults</CardDescription>
+              <CardTitle>Platform Defaults</CardTitle>
+              <CardDescription>Read-only configuration values currently enforced by the application</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -343,6 +447,8 @@ export default function SettingsPage() {
           </Card>
         </div>
       )}
+
+      {activeTab === 'activity' && currentRole === 'ADMIN' && <ActivityLogPanel />}
     </div>
   )
 }

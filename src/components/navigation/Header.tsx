@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Menu, Plus } from 'lucide-react'
 import { UserMenu } from './UserMenu'
 import { Sidebar } from './Sidebar'
@@ -61,13 +60,13 @@ export function Header() {
           </button>
 
           <Link href="/dashboard" className="flex items-center space-x-2 md:hidden" aria-label="NiCE Club dashboard">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src="/brand/NiCE-Logo-Animated-transparent.webp"
               alt="NiCE Club Rwanda logo"
               width={32}
               height={32}
-              className="w-8 h-8 object-contain rounded-lg"
-              priority
+              className="h-8 w-8 object-contain"
             />
             <span className="font-bold text-slate-900 text-sm tracking-tight">NiCE Club</span>
           </Link>

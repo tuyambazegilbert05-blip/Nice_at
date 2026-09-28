@@ -3,6 +3,7 @@ import { getAllSessions, createSession } from '../../../lib/sessions/session-ser
 import { CreateSessionInput } from '../../../types/session'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
+import { recordActivity } from '../../../lib/activity/activity-service'
 
 export async function GET() {
   try {
@@ -55,6 +56,15 @@ export async function POST(request: Request) {
     }
 
     const session = await createSession(body, user.id)
+    await recordActivity({
+      actor: user,
+      action: 'session.created',
+      targetType: 'session',
+      targetId: session.id,
+      targetLabel: session.title,
+      summary: `Created session “${session.title}”`,
+      details: { type: session.type, date: String(session.date).slice(0, 10), location: session.location },
+    })
 
     return NextResponse.json(
       {

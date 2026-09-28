@@ -59,11 +59,10 @@ export default async function SessionAnalyticsPage({ params }: { params: Promise
         <Card><CardHeader><CardTitle>Study year</CardTitle></CardHeader><CardContent className="pt-3"><DistributionBars items={analytics.yearDistribution} emptyLabel="No study-year data" /></CardContent></Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5">
         <Card><CardHeader><CardTitle>Participant reflections</CardTitle></CardHeader><CardContent>
           {analytics.recentReflections.length ? <ul className="space-y-4">{analytics.recentReflections.map((item, index) => <li key={`${item.submittedAt}-${index}`} className="border-b border-slate-100 pb-3 last:border-0">{item.keyTakeaway && <p className="text-sm text-slate-800">“{item.keyTakeaway}”</p>}{item.feedback && <p className="mt-1 text-sm text-slate-600">{item.feedback}</p>}<time className="mt-2 block text-xs text-slate-400">{formatDateTime(item.submittedAt)}</time></li>)}</ul> : <p className="py-8 text-center text-sm text-slate-500">No reflections yet.</p>}
         </CardContent></Card>
-        <Card><CardHeader><CardTitle>Availability</CardTitle></CardHeader><CardContent className="space-y-3 text-sm text-slate-600"><p>Attendance completion <span className="font-semibold text-slate-800">Unavailable</span></p><p>Rejected check-ins <span className="font-semibold text-slate-800">Not tracked</span></p></CardContent></Card>
       </div>
     </div>
   )

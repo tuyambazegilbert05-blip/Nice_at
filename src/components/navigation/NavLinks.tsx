@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '../../utils/cn'
@@ -8,15 +8,18 @@ import { MotionLink } from '../../motion/gsap/MotionLink'
 import { gsap } from '../../motion/gsap'
 import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
 import { useGSAP } from '../../motion/gsap/useGsap'
+import type { UserRole } from '../../types/user'
 
-export const NAVIGATION_ITEMS = [
+type NavigationItem = { name: string; href: string; allowedRoles?: UserRole[] }
+
+export const NAVIGATION_ITEMS: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard' },
   { name: 'Sessions', href: '/sessions' },
   { name: 'Attendance', href: '/attendance' },
   { name: 'Participants', href: '/participants' },
   { name: 'Analytics', href: '/analytics' },
   { name: 'Communications', href: '/communications' },
-  { name: 'Resources', href: '/resources' },
+  { name: 'Platform Tools', href: '/resources' },
   { name: 'Settings', href: '/settings' },
   { name: 'Account', href: '/account' },
 ]
@@ -25,14 +28,24 @@ const NAVIGATION_GROUPS = [
   { label: 'Operations', items: NAVIGATION_ITEMS.slice(0, 7) },
   { label: 'Workspace', items: NAVIGATION_ITEMS.slice(7) },
 ]
-type NavigationItem = (typeof NAVIGATION_ITEMS)[number]
-
 export function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname()
   const nav = useRef<HTMLElement>(null)
   const indicator = useRef<HTMLSpanElement>(null)
+  const [currentRole, setCurrentRole] = useState<UserRole | null>(null)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ Operations: true, Workspace: true })
   const groupStateKey = Object.entries(expandedGroups).map(([label, expanded]) => `${label}:${expanded}`).join('|')
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth')
+      .then((response) => response.json())
+      .then((data) => {
+        if (!cancelled && data.user?.role) setCurrentRole(data.user.role as UserRole)
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
 
   useGSAP(() => {
     const navigation = nav.current
@@ -65,7 +78,7 @@ export function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
             key={label}
             id={groupId}
             label={label}
-            items={items}
+            items={items.filter((item) => !item.allowedRoles || (currentRole !== null && item.allowedRoles.includes(currentRole)))}
             expanded={expanded}
             pathname={pathname ?? ''}
             onToggle={() => setExpandedGroups((current) => ({ ...current, [label]: !current[label] }))}

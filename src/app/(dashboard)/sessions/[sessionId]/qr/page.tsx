@@ -19,6 +19,9 @@ import { Button } from '../../../../../components/ui/Button'
 import { formatDate } from '../../../../../utils/date'
 import { Session } from '../../../../../types/session'
 import { downloadBrandedFlyer } from '../../../../../lib/qr/flyer-generator'
+import { ROLE_PERMISSIONS } from '../../../../../lib/permissions/roles'
+import type { UserRole } from '../../../../../types/user'
+import { RestrictedActionButton } from '../../../../../components/ui/RestrictedAction'
 
 export default function SessionQRPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
@@ -28,9 +31,21 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
   const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const [copied, setCopied] = useState(false)
   const [generatingFlyer, setGeneratingFlyer] = useState(false)
+  const [currentRole, setCurrentRole] = useState<UserRole | null>(null)
+  const [accessChecked, setAccessChecked] = useState(false)
+  const [accessError, setAccessError] = useState('')
   const posterRef = useRef<HTMLDivElement>(null)
+  const permissions = currentRole ? ROLE_PERMISSIONS[currentRole] ?? [] : []
+  const canGenerate = permissions.includes('qr:generate')
 
   useEffect(() => {
+    fetch('/api/auth').then(async (response) => {
+      const result = await response.json()
+      if (!response.ok || !result.user?.role) throw new Error('Access denied: unable to verify QR generation permission.')
+      setCurrentRole(result.user.role as UserRole)
+    }).catch((error) => setAccessError(error instanceof Error ? error.message : 'Access denied: could not verify QR permissions.'))
+      .finally(() => setAccessChecked(true))
+
     fetch(`/api/sessions/${encodeURIComponent(sessionId)}`).then(async (response) => {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Unable to load session')
@@ -39,7 +54,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
   }, [sessionId])
 
   useEffect(() => {
-    if (!session) return
+    if (!session || !canGenerate) return
     const attendanceUrl = `${window.location.origin}/attend/${session.publicToken}`
     QRCode.toDataURL(attendanceUrl, {
       width: 520,
@@ -52,7 +67,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
     })
       .then((url) => setQrDataUrl(url))
       .catch((err) => console.error('Failed to generate QR code', err))
-  }, [session])
+  }, [session, canGenerate])
 
   if (!session) return <p className="p-6 text-sm text-slate-600">{loadError || 'Loading session…'}</p>
 
@@ -61,6 +76,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
     : `/attend/${session.publicToken}`
 
   const handleCopyLink = () => {
+    if (!canGenerate) return
     if (typeof navigator !== 'undefined') {
       navigator.clipboard.writeText(attendanceUrl)
       setCopied(true)
@@ -69,7 +85,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
   }
 
   const handleDownloadFlyer = async () => {
-    if (!qrDataUrl) return
+    if (!canGenerate || !qrDataUrl) return
     setGeneratingFlyer(true)
     try {
       await downloadBrandedFlyer({
@@ -88,7 +104,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
   }
 
   const handleDownloadQROnly = () => {
-    if (!qrDataUrl) return
+    if (!canGenerate || !qrDataUrl) return
     const link = document.createElement('a')
     link.download = `nice-qr-code-${session.publicToken}.png`
     link.href = qrDataUrl
@@ -96,6 +112,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
   }
 
   const handlePrint = () => {
+    if (!canGenerate) return
     if (typeof window !== 'undefined') {
       window.print()
     }
@@ -118,14 +135,14 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
+          {accessChecked && canGenerate ? <Button
             variant="outline"
             size="sm"
             onClick={handleCopyLink}
             leftIcon={copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
           >
             {copied ? 'Copied' : 'Copy Link'}
-          </Button>
+          </Button> : accessChecked ? <RestrictedActionButton message={accessError || `Access denied: your ${currentRole} role cannot generate or copy QR materials.`} variant="outline" size="sm" leftIcon={<Copy className="w-4 h-4" />}>Copy Link</RestrictedActionButton> : <Button disabled variant="outline" size="sm" leftIcon={<Copy className="w-4 h-4" />}>Copy Link</Button>}
 
           <a href={attendanceUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm" leftIcon={<ExternalLink className="w-4 h-4" />}>
@@ -185,7 +202,9 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
 
               {/* High Contrast QR Frame */}
               <div className="p-4 rounded-2xl bg-white border-2 border-slate-900/10 shadow-lg relative group">
-                {qrDataUrl ? (
+                {!canGenerate && accessChecked ? (
+                  <div className="flex h-56 w-56 items-center justify-center px-5 text-center text-xs text-slate-400">QR preview unavailable.</div>
+                ) : qrDataUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={qrDataUrl}
@@ -222,7 +241,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
               </p>
 
               <div className="space-y-2.5 pt-2">
-                <Button
+                {accessChecked && canGenerate ? <Button
                   variant="primary"
                   size="md"
                   onClick={handleDownloadFlyer}
@@ -231,9 +250,9 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
                   leftIcon={<Download className="w-4 h-4" />}
                 >
                   Download Branded Flyer (PNG)
-                </Button>
+                </Button> : accessChecked ? <RestrictedActionButton message={accessError || `Access denied: your ${currentRole} role cannot download branded QR flyers.`} variant="primary" size="md" className="w-full justify-start text-xs sm:text-sm" leftIcon={<Download className="w-4 h-4" />}>Download Branded Flyer (PNG)</RestrictedActionButton> : <Button disabled variant="primary" size="md" className="w-full justify-start text-xs sm:text-sm" leftIcon={<Download className="w-4 h-4" />}>Download Branded Flyer (PNG)</Button>}
 
-                <Button
+                {accessChecked && canGenerate ? <Button
                   variant="outline"
                   size="md"
                   onClick={handleDownloadQROnly}
@@ -241,9 +260,9 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
                   leftIcon={<Download className="w-4 h-4 text-slate-500" />}
                 >
                   Download QR Code Only
-                </Button>
+                </Button> : accessChecked ? <RestrictedActionButton message={accessError || `Access denied: your ${currentRole} role cannot download QR codes.`} variant="outline" size="md" className="w-full justify-start text-xs sm:text-sm" leftIcon={<Download className="w-4 h-4 text-slate-500" />}>Download QR Code Only</RestrictedActionButton> : <Button disabled variant="outline" size="md" className="w-full justify-start text-xs sm:text-sm" leftIcon={<Download className="w-4 h-4 text-slate-500" />}>Download QR Code Only</Button>}
 
-                <Button
+                {accessChecked && canGenerate ? <Button
                   variant="outline"
                   size="md"
                   onClick={handlePrint}
@@ -251,7 +270,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
                   leftIcon={<Printer className="w-4 h-4 text-slate-500" />}
                 >
                   Print Branded Poster (A4)
-                </Button>
+                </Button> : accessChecked ? <RestrictedActionButton message={accessError || `Access denied: your ${currentRole} role cannot print QR materials.`} variant="outline" size="md" className="w-full justify-start text-xs sm:text-sm" leftIcon={<Printer className="w-4 h-4 text-slate-500" />}>Print Branded Poster (A4)</RestrictedActionButton> : <Button disabled variant="outline" size="md" className="w-full justify-start text-xs sm:text-sm" leftIcon={<Printer className="w-4 h-4 text-slate-500" />}>Print Branded Poster (A4)</Button>}
               </div>
             </CardContent>
           </Card>

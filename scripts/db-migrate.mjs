@@ -39,7 +39,7 @@ try {
       client.release()
     }
   }
-  const required = ['users', 'sessions', 'session_questions', 'attendance_records', 'user_invitations', 'email_delivery_log', 'schema_migrations']
+  const required = ['users', 'sessions', 'session_questions', 'attendance_records', 'user_invitations', 'email_delivery_log', 'activity_log', 'schema_migrations']
   const result = await pool.query('SELECT table_name FROM unnest($1::text[]) AS required(table_name) WHERE to_regclass(\'public.\' || table_name) IS NULL', [required])
   if (result.rowCount) throw new Error(`Database migration completed but required tables are missing: ${result.rows.map((row) => row.table_name).join(', ')}`)
   console.log(`Database ready: verified ${required.join(', ')}`)
