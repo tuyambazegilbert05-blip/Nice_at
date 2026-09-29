@@ -17,7 +17,14 @@ if (!DATABASE_URL) throw new Error('DATABASE_URL is required')
 if (!INITIAL_ADMIN_EMAIL || !INITIAL_ADMIN_PASSWORD || !INITIAL_ADMIN_NAME) {
   throw new Error('Admin seed settings are missing. Add INITIAL_ADMIN_NAME, INITIAL_ADMIN_EMAIL, and INITIAL_ADMIN_PASSWORD to .env.local (or export them in your shell) before running npm run db:seed-admin. Do not use the example password from .env.example.')
 }
-if (INITIAL_ADMIN_PASSWORD.length < 14) throw new Error('Initial admin password must be at least 14 characters')
+const strongPassword = typeof INITIAL_ADMIN_PASSWORD === 'string'
+  && INITIAL_ADMIN_PASSWORD.length >= 6
+  && INITIAL_ADMIN_PASSWORD.length <= 200
+  && /[A-Z]/.test(INITIAL_ADMIN_PASSWORD)
+  && /[a-z]/.test(INITIAL_ADMIN_PASSWORD)
+  && /\d/.test(INITIAL_ADMIN_PASSWORD)
+  && /[^A-Za-z0-9]/.test(INITIAL_ADMIN_PASSWORD)
+if (!strongPassword) throw new Error('Initial admin password must contain at least 6 characters, uppercase and lowercase letters, a number, and a symbol')
 const email = INITIAL_ADMIN_EMAIL.trim().toLowerCase()
 const salt = randomBytes(16).toString('hex')
 const hash = pbkdf2Sync(INITIAL_ADMIN_PASSWORD, salt, 100000, 64, 'sha512').toString('hex')

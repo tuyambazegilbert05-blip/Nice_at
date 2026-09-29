@@ -6,6 +6,8 @@ import { Camera, KeyRound, Mail, ShieldCheck, UserRound, X } from 'lucide-react'
 import { LottieIllustration } from '../../../lottie/shared/LottieIllustration'
 import { formatInitials } from '../../../utils/format'
 import type { AuthUser } from '../../../types/user'
+import { PasswordField } from '../../../components/ui/PasswordField'
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/auth/password-policy'
 
 type FormState = { name: string; email: string; avatarUrl: string }
 
@@ -52,12 +54,20 @@ export default function AccountPage() {
 
   const changePassword = async (event: FormEvent) => {
     event.preventDefault()
+    setMessage(''); setError('')
+    if (!isStrongPassword(passwords.newPassword)) { setError(PASSWORD_POLICY_MESSAGE); return }
+    if (passwords.newPassword !== passwords.confirmPassword) { setError('New passwords do not match.'); return }
     setChangingPassword(true); setMessage(''); setError('')
-    const response = await fetch('/api/account', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(passwords) })
-    const data = await response.json()
-    if (!response.ok) setError(data.error ?? 'Could not change your password.')
-    else { setMessage('Password changed successfully.'); setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' }) }
-    setChangingPassword(false)
+    try {
+      const response = await fetch('/api/account', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(passwords) })
+      const data = await response.json()
+      if (!response.ok) setError(data.error ?? 'Could not change your password.')
+      else { setMessage('Password changed successfully.'); setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' }) }
+    } catch {
+      setError('Could not change your password. Check your connection and try again.')
+    } finally {
+      setChangingPassword(false)
+    }
   }
 
   const initials = formatInitials(user?.name ?? 'NiCE Staff')
@@ -86,7 +96,15 @@ export default function AccountPage() {
 
         <div className="flex flex-col gap-6">
           <div data-account-item className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="mb-5 flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><ShieldCheck /></div><div><h2 className="font-bold text-slate-950">Access & role</h2><p className="text-xs text-slate-500">Your workspace permissions.</p></div></div><div className="flex items-center justify-between border-b border-slate-100 pb-4"><span className="text-sm text-slate-500">Role</span><span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">{user?.role ?? '…'}</span></div><div className="flex items-center justify-between pt-4"><span className="text-sm text-slate-500">Account status</span><span className="flex items-center gap-2 text-sm font-semibold text-emerald-600"><span className="size-2 rounded-full bg-emerald-500" />Active</span></div></div>
-          <div data-account-item className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="mb-5 flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-700"><KeyRound /></div><div><h2 className="font-bold text-slate-950">Security</h2><p className="text-xs text-slate-500">Change your password.</p></div></div><form onSubmit={changePassword} className="flex flex-col gap-3"><input required type="password" placeholder="Current password" value={passwords.currentPassword} onChange={(event) => setPasswords({ ...passwords, currentPassword: event.target.value })} className="rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-100" /><input required minLength={8} type="password" placeholder="New password (8+ characters)" value={passwords.newPassword} onChange={(event) => setPasswords({ ...passwords, newPassword: event.target.value })} className="rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-100" /><input required type="password" placeholder="Confirm new password" value={passwords.confirmPassword} onChange={(event) => setPasswords({ ...passwords, confirmPassword: event.target.value })} className="rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-100" /><button disabled={changingPassword} className="mt-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 disabled:opacity-60">{changingPassword ? 'Updating…' : 'Update password'}</button></form></div>
+          <div data-account-item className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-700"><KeyRound /></div><div><h2 className="font-bold text-slate-950">Security</h2><p className="text-xs text-slate-500">Change your password.</p></div></div>
+            <form onSubmit={changePassword} className="flex flex-col gap-3">
+              <PasswordField label="Current password" autoComplete="current-password" value={passwords.currentPassword} onChange={(currentPassword) => setPasswords((current) => ({ ...current, currentPassword }))} placeholder="Enter current password" />
+              <PasswordField label="New password" value={passwords.newPassword} onChange={(newPassword) => setPasswords((current) => ({ ...current, newPassword }))} placeholder="Create a strong password" showRequirements />
+              <PasswordField label="Confirm new password" value={passwords.confirmPassword} onChange={(confirmPassword) => setPasswords((current) => ({ ...current, confirmPassword }))} confirmValue={passwords.newPassword} placeholder="Re-enter your password" />
+              <button disabled={changingPassword} className="mt-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 disabled:opacity-60">{changingPassword ? 'Updating…' : 'Update password'}</button>
+            </form>
+          </div>
         </div>
       </div>
       {error && <div role="alert" className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 flex items-start gap-3 rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm leading-relaxed text-rose-700 shadow-xl sm:bottom-5 sm:left-auto sm:right-5 sm:max-w-md"><X className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 break-words">{error}</span></div>}

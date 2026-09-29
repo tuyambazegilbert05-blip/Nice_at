@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { query, withTransaction } from '../../../../lib/database/client'
 import { hashPassword } from '../../../../lib/auth/passwords'
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../../../../lib/auth/password-policy'
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token')?.trim()
@@ -25,8 +26,8 @@ export async function POST(request: NextRequest) {
     const token = body.token?.trim()
     const name = body.name?.trim()
     const password = body.password || ''
-    if (!token || !name || name.length > 120 || password.length < 14 || password.length > 200) {
-      return NextResponse.json({ success: false, error: 'Enter your name and a password of at least 14 characters.' }, { status: 400 })
+    if (!token || !name || name.length > 120 || !isStrongPassword(password)) {
+      return NextResponse.json({ success: false, error: `Enter your name and ${PASSWORD_POLICY_MESSAGE}` }, { status: 400 })
     }
     const tokenHash = createHash('sha256').update(token).digest('hex')
     const outcome = await withTransaction(async (client) => {

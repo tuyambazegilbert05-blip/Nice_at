@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { query, withTransaction } from '../../../../lib/database/client'
 import { hashPassword } from '../../../../lib/auth/passwords'
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../../../../lib/auth/password-policy'
 import { deliverBrandedEmail } from '../../../../lib/email/brevo'
 
 type UserRow = { id: string; email: string; name: string | null }
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   }
   if (body.action === 'reset') {
     const token = body.token?.trim(); const password = body.password || ''
-    if (!token || password.length < 8) return NextResponse.json({ success: false, error: 'Use a valid reset link and a password of at least 8 characters.' }, { status: 400 })
+    if (!token || !isStrongPassword(password)) return NextResponse.json({ success: false, error: `Use a valid reset link and ${PASSWORD_POLICY_MESSAGE}` }, { status: 400 })
     const result = await query<{ id: string; user_id: string }>('SELECT id,user_id FROM password_reset_tokens WHERE token_hash=$1 AND used_at IS NULL AND expires_at>now() LIMIT 1', [digest(token)])
     const reset = result.rows[0]
     if (!reset) return NextResponse.json({ success: false, error: 'This reset link is invalid or has expired. Please request a new one.' }, { status: 400 })

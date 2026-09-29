@@ -3,6 +3,7 @@ import { getCurrentUser } from '../../../lib/auth/session'
 import { hashPassword, verifyPassword } from '../../../lib/auth/passwords'
 import { query } from '../../../lib/database/client'
 import { recordActivity } from '../../../lib/activity/activity-service'
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/auth/password-policy'
 
 const profileUrl = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : null
 
@@ -32,7 +33,8 @@ export async function POST(request: Request) {
   const body = await request.json() as { currentPassword?: unknown; newPassword?: unknown; confirmPassword?: unknown }
   const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : ''
   const newPassword = typeof body.newPassword === 'string' ? body.newPassword : ''
-  if (newPassword.length < 8 || newPassword !== body.confirmPassword) return NextResponse.json({ error: 'New passwords must match and be at least 8 characters.' }, { status: 400 })
+  if (!isStrongPassword(newPassword)) return NextResponse.json({ error: PASSWORD_POLICY_MESSAGE }, { status: 400 })
+  if (newPassword !== body.confirmPassword) return NextResponse.json({ error: 'New passwords must match.' }, { status: 400 })
   const result = await query<{ password_hash: string }>('SELECT password_hash FROM users WHERE id=$1', [user.id])
   if (!result.rows[0] || !verifyPassword(currentPassword, result.rows[0].password_hash)) return NextResponse.json({ error: 'Current password is incorrect.' }, { status: 400 })
   await query('UPDATE users SET password_hash=$1, updated_at=now() WHERE id=$2', [hashPassword(newPassword), user.id])

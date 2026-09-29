@@ -184,6 +184,12 @@
 - Motion could not be added: npm registry requests repeatedly failed with `ECONNRESET`, including the approved install retry. The roster/modal transitions use the existing GSAP and Flip dependencies until Motion can be installed.
 - Validation: `npm run type-check` and the Node 22 production build passed; `npm run lint` has no errors (three existing image optimization warnings); `git diff --check` passed. Next.js reports its existing middleware convention deprecation warning.
 
+## Password Policy and Visibility (2026-09-29)
+
+- Unified new-password creation and change rules across invitations, password reset, account settings, and initial administrator seeding: at least 6 characters, uppercase and lowercase letters, a number, and a symbol (maximum 200 characters). Server endpoints enforce the same policy.
+- Added live password requirement and confirmation feedback while typing, and reusable show/hide eye controls on password creation, confirmation, and account-change fields. Sign-in and sensitive-action confirmation fields retain their existing visibility controls.
+- Validation: `npm run type-check` and the Node 22 production build passed; `npm run lint` has no errors (three existing image optimization warnings); `git diff --check` passed. Next.js reports its existing middleware convention deprecation warning.
+
 ---
 
 ## Phase Tracker

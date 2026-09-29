@@ -4,6 +4,8 @@ import { FormEvent, use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { PasswordField } from '../../../components/ui/PasswordField'
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/auth/password-policy'
 
 type Invitation = { email: string; role: string; name: string | null }
 
@@ -39,6 +41,7 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
+    if (!isStrongPassword(password)) return setError(PASSWORD_POLICY_MESSAGE)
     if (password !== confirmPassword) return setError('Passwords do not match.')
     setSaving(true)
     try {
@@ -75,15 +78,8 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
                 Full name
                 <input required maxLength={120} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
               </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Create a strong password
-                <input required minLength={14} maxLength={200} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
-                <span className="mt-1 block text-xs font-normal text-slate-500">Use at least 14 characters.</span>
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Confirm password
-                <input required minLength={14} maxLength={200} type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
-              </label>
+              <PasswordField label="Create a strong password" value={password} onChange={setPassword} placeholder="Create a password" showRequirements />
+              <PasswordField label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} confirmValue={password} placeholder="Re-enter your password" />
               {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
               <button disabled={saving} className="w-full rounded-lg bg-sky-700 px-4 py-3 font-semibold text-white hover:bg-sky-800 disabled:opacity-60">{saving ? 'Activating…' : 'Activate account'}</button>
             </form>

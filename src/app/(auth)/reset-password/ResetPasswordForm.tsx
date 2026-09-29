@@ -4,14 +4,68 @@ import React, { useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
-import { Input } from '../../../components/ui/Input'
+import { PasswordField } from '../../../components/ui/PasswordField'
 import { Button } from '../../../components/ui/Button'
-import { KeyRound, CheckCircle2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { KeyRound, CheckCircle2, ArrowLeft } from 'lucide-react'
 import { FormFieldsMotion } from '../../../motion/gsap/FormMotion'
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/auth/password-policy'
 
 export default function ResetPasswordForm() {
-  const params = useSearchParams(); const router = useRouter(); const token = params.get('token') || ''
-  const [password, setPassword] = useState(''); const [confirm, setConfirm] = useState(''); const [show, setShow] = useState(false); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [done, setDone] = useState(false)
-  const submit = async (e: React.FormEvent) => { e.preventDefault(); setError(''); if (!token) return setError('This reset link is missing its token.'); if (password.length < 8) return setError('Use at least 8 characters.'); if (password !== confirm) return setError('Passwords do not match.'); setLoading(true); try { const response = await fetch('/api/auth/password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset', token, password }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setDone(true) } catch (err) { setError(err instanceof Error ? err.message : 'Unable to reset your password.') } finally { setLoading(false) } }
-  return <Card className="shadow-elevated border-slate-200"><CardHeader className="text-center pb-4"><div className="w-12 h-12 rounded-2xl bg-nice-blue-50 border border-nice-blue-100 text-nice-blue-600 mx-auto mb-3 flex items-center justify-center">{done ? <CheckCircle2 className="w-6 h-6 text-emerald-600" /> : <KeyRound className="w-6 h-6" />}</div><CardTitle className="text-xl font-bold">{done ? 'Password updated' : 'Create a new password'}</CardTitle><CardDescription>{done ? 'Your account is secure. You can sign in with your new password.' : 'Choose a strong password for your NiCE Club Rwanda staff account.'}</CardDescription></CardHeader><CardContent><FormFieldsMotion>{done ? <div className="text-center"><Button type="button" variant="primary" className="w-full" onClick={() => router.push('/login')}>Continue to Sign In</Button></div> : <form onSubmit={submit} className="flex flex-col gap-4">{error && <div role="alert" className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">{error}</div>}<div className="relative"><Input label="New Password" type={show ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" /><button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={() => setShow(!show)} className="absolute right-2 top-8 p-1.5 text-slate-500">{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button></div><Input label="Confirm Password" type={show ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat your new password" /><Button type="submit" variant="primary" className="w-full" isLoading={loading}>{loading ? 'Updating password...' : 'Update Password'}</Button><Link href="/login" className="inline-flex justify-center items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800"><ArrowLeft className="w-3 h-3" /> Back to Sign In</Link></form>}</FormFieldsMotion></CardContent></Card>
+  const params = useSearchParams()
+  const router = useRouter()
+  const token = params.get('token') || ''
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setError('')
+    if (!token) return setError('This reset link is missing its token.')
+    if (!isStrongPassword(password)) return setError(PASSWORD_POLICY_MESSAGE)
+    if (password !== confirm) return setError('Passwords do not match.')
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/auth/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset', token, password }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error)
+      setDone(true)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to reset your password.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card className="border-slate-200 shadow-elevated">
+      <CardHeader className="pb-4 text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-nice-blue-100 bg-nice-blue-50 text-nice-blue-600">
+          {done ? <CheckCircle2 className="h-6 w-6 text-emerald-600" /> : <KeyRound className="h-6 w-6" />}
+        </div>
+        <CardTitle className="text-xl font-bold">{done ? 'Password updated' : 'Create a new password'}</CardTitle>
+        <CardDescription>{done ? 'Your account is secure. You can sign in with your new password.' : 'Choose a strong password for your NiCE Club Rwanda staff account.'}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <FormFieldsMotion>
+          {done ? <div className="text-center">
+            <Button type="button" variant="primary" className="w-full" onClick={() => router.push('/login')}>Continue to Sign In</Button>
+          </div> : <form onSubmit={submit} className="flex flex-col gap-4">
+            {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
+            <PasswordField label="New password" value={password} onChange={setPassword} placeholder="Create a strong password" showRequirements />
+            <PasswordField label="Confirm password" value={confirm} onChange={setConfirm} confirmValue={password} placeholder="Re-enter your password" />
+            <Button type="submit" variant="primary" className="w-full" isLoading={loading}>{loading ? 'Updating password…' : 'Update password'}</Button>
+            <Link href="/login" className="inline-flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-slate-800"><ArrowLeft className="h-3 w-3" /> Back to Sign In</Link>
+          </form>}
+        </FormFieldsMotion>
+      </CardContent>
+    </Card>
+  )
 }
