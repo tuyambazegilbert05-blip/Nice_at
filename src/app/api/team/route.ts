@@ -6,28 +6,29 @@ import type { UserRole } from '../../../types/user'
 import { recordActivity } from '../../../lib/activity/activity-service'
 
 const ROLES: UserRole[] = ['ADMIN', 'MANAGER', 'STAFF', 'VIEWER']
+const PRIVATE_HEADERS = { 'Cache-Control': 'private, no-store' }
 
 export async function GET() {
   try {
     const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401, headers: PRIVATE_HEADERS })
     const users = await getAllUsers()
     const data = hasPermission(user.role, 'users:manage')
       ? users
       : users.map(({ id, name, role, isActive, avatarUrl }) => ({ id, name, role, isActive, avatarUrl }))
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data }, { headers: PRIVATE_HEADERS })
   } catch (error) {
     console.error('Error loading staff directory:', error)
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500, headers: PRIVATE_HEADERS })
   }
 }
 
 export async function PATCH(request: Request) {
   try {
     const actor = await getCurrentUser()
-    if (!actor) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    if (!actor) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401, headers: PRIVATE_HEADERS })
     if (!hasPermission(actor.role, 'users:manage')) {
-      return NextResponse.json({ success: false, error: 'Only administrators can change staff roles.' }, { status: 403 })
+      return NextResponse.json({ success: false, error: 'Only administrators can change staff roles.' }, { status: 403, headers: PRIVATE_HEADERS })
     }
 
     const body = await request.json() as { userId?: string; role?: UserRole }
@@ -67,17 +68,17 @@ export async function PATCH(request: Request) {
       return { kind: 'updated' as const, user: updated.rows[0], previousRole: target.role }
     })
 
-    if (outcome.kind === 'forbidden') return NextResponse.json({ success: false, error: 'Only active administrators can change staff roles.' }, { status: 403 })
-    if (outcome.kind === 'self') return NextResponse.json({ success: false, error: 'You cannot change your own role. Ask another administrator.' }, { status: 409 })
-    if (outcome.kind === 'missing') return NextResponse.json({ success: false, error: 'Staff account not found.' }, { status: 404 })
-    if (outcome.kind === 'last-admin') return NextResponse.json({ success: false, error: 'The last active administrator cannot be demoted.' }, { status: 409 })
-    if (outcome.kind === 'unchanged') return NextResponse.json({ success: true, message: 'This account already has that role.' })
+    if (outcome.kind === 'forbidden') return NextResponse.json({ success: false, error: 'Only active administrators can change staff roles.' }, { status: 403, headers: PRIVATE_HEADERS })
+    if (outcome.kind === 'self') return NextResponse.json({ success: false, error: 'You cannot change your own role. Ask another administrator.' }, { status: 409, headers: PRIVATE_HEADERS })
+    if (outcome.kind === 'missing') return NextResponse.json({ success: false, error: 'Staff account not found.' }, { status: 404, headers: PRIVATE_HEADERS })
+    if (outcome.kind === 'last-admin') return NextResponse.json({ success: false, error: 'The last active administrator cannot be demoted.' }, { status: 409, headers: PRIVATE_HEADERS })
+    if (outcome.kind === 'unchanged') return NextResponse.json({ success: true, message: 'This account already has that role.' }, { headers: PRIVATE_HEADERS })
     await recordActivity({ actor, action: 'staff.role_changed', targetType: 'staff_account', targetId: outcome.user.id, targetLabel: outcome.user.name,
       summary: `Changed ${outcome.user.name}’s role from ${outcome.previousRole} to ${outcome.user.role}`,
       details: { from: outcome.previousRole, to: outcome.user.role } })
-    return NextResponse.json({ success: true, data: outcome.user, message: 'Staff role updated.' })
+    return NextResponse.json({ success: true, data: outcome.user, message: 'Staff role updated.' }, { headers: PRIVATE_HEADERS })
   } catch (error) {
     console.error('Could not update staff role:', error)
-    return NextResponse.json({ success: false, error: 'Could not update the staff role.' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Could not update the staff role.' }, { status: 500, headers: PRIVATE_HEADERS })
   }
 }

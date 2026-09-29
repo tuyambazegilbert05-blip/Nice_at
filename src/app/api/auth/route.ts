@@ -7,6 +7,8 @@ import {
 } from '../../../lib/auth'
 import { createSessionToken } from '../../../lib/auth/jwt'
 
+const PRIVATE_HEADERS = { 'Cache-Control': 'private, no-store' }
+
 export async function GET() {
   try {
     const user = await getCurrentUser()
@@ -14,12 +16,12 @@ export async function GET() {
       success: true,
       user,
       isAuthenticated: !!user,
-    })
+    }, { headers: PRIVATE_HEADERS })
   } catch (error) {
     console.error('Error fetching current session:', error)
     return NextResponse.json(
       { success: false, error: 'Internal Server Error' },
-      { status: 500 }
+      { status: 500, headers: PRIVATE_HEADERS }
     )
   }
 }
@@ -32,7 +34,7 @@ export async function POST(request: Request) {
     if (!email || !password) {
       return NextResponse.json(
         { success: false, error: 'Email and password are required' },
-        { status: 400 }
+        { status: 400, headers: PRIVATE_HEADERS }
       )
     }
 
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Invalid email or password' },
-        { status: 401 }
+        { status: 401, headers: PRIVATE_HEADERS }
       )
     }
 
@@ -51,12 +53,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       user,
-    })
+    }, { headers: PRIVATE_HEADERS })
   } catch (error) {
     console.error('Error during authentication:', error)
     return NextResponse.json(
       { success: false, error: 'Authentication failed' },
-      { status: 500 }
+      { status: 500, headers: PRIVATE_HEADERS }
     )
   }
 }
@@ -67,12 +69,12 @@ export async function DELETE() {
     return NextResponse.json({
       success: true,
       message: 'Signed out successfully',
-    })
+    }, { headers: PRIVATE_HEADERS })
   } catch (error) {
     console.error('Error during sign out:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to sign out' },
-      { status: 500 }
+      { status: 500, headers: PRIVATE_HEADERS }
     )
   }
 }

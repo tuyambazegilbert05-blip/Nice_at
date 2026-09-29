@@ -1,10 +1,23 @@
 import crypto from 'crypto'
 import { AuthUser } from '../../types/user'
 
-const SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'nice-club-rwanda-attendance-secure-token-secret-2026'
+const DEVELOPMENT_SECRET = 'local-development-only-nice-club-session-secret'
+
+function getSigningSecret(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  if (secret && (process.env.NODE_ENV !== 'production' || secret.length >= 32)) return secret
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('A production AUTH_SECRET of at least 32 characters must be configured.')
+  }
+
+  return DEVELOPMENT_SECRET
+}
 
 interface TokenPayload {
-  user: AuthUser
+  sub?: string
+  // Read older sessions during rollout; new tokens only carry a user subject.
+  user?: Pick<AuthUser, 'id'>
   exp: number
   iat: number
 }
@@ -37,7 +50,7 @@ export function createSessionToken(user: AuthUser, expiresInSeconds = 604800): s
 
   const now = Math.floor(Date.now() / 1000)
   const payload: TokenPayload = {
-    user,
+    sub: user.id,
     iat: now,
     exp: now + expiresInSeconds,
   }
@@ -47,7 +60,7 @@ export function createSessionToken(user: AuthUser, expiresInSeconds = 604800): s
   const dataToSign = `${encodedHeader}.${encodedPayload}`
 
   const signature = crypto
-    .createHmac('sha256', SECRET)
+    .createHmac('sha256', getSigningSecret())
     .update(dataToSign)
     .digest('base64')
     .replace(/=/g, '')
@@ -60,7 +73,7 @@ export function createSessionToken(user: AuthUser, expiresInSeconds = 604800): s
 /**
  * Validates a session token, checks signature and expiration, and extracts the authenticated user.
  */
-export function verifySessionToken(token: string): AuthUser | null {
+export function verifySessionToken(token: string): Pick<AuthUser, 'id'> | null {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
@@ -69,7 +82,7 @@ export function verifySessionToken(token: string): AuthUser | null {
     const dataToSign = `${encodedHeader}.${encodedPayload}`
 
     const expectedSignature = crypto
-      .createHmac('sha256', SECRET)
+      .createHmac('sha256', getSigningSecret())
       .update(dataToSign)
       .digest('base64')
       .replace(/=/g, '')
@@ -90,7 +103,8 @@ export function verifySessionToken(token: string): AuthUser | null {
       return null // Expired
     }
 
-    return payload.user
+    const userId = payload.sub || payload.user?.id
+    return userId ? { id: userId } : null
   } catch {
     return null
   }

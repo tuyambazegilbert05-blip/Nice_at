@@ -190,6 +190,15 @@
 - Added live password requirement and confirmation feedback while typing, and reusable show/hide eye controls on password creation, confirmation, and account-change fields. Sign-in and sensitive-action confirmation fields retain their existing visibility controls.
 - Validation: `npm run type-check` and the Node 22 production build passed; `npm run lint` has no errors (three existing image optimization warnings); `git diff --check` passed. Next.js reports its existing middleware convention deprecation warning.
 
+## Private API Response Hardening (2026-09-29)
+
+- Staff directory access remains authenticated; only administrators with `users:manage` receive staff emails and account timestamps. Other signed-in roles receive the limited directory fields needed by their UI.
+- Added `Cache-Control: private, no-store` to staff directory and current-session API responses so user-specific data is not retained by browser or intermediary caches.
+- New JWTs carry only the user ID and expiry instead of the user's name, email, and role; the server re-reads current account data and role from PostgreSQL on each request. Older session tokens remain readable during rollout.
+- Removed the production fallback to a hard-coded JWT signing secret. Production must configure a private `AUTH_SECRET` (or `NEXTAUTH_SECRET`) of at least 32 characters; without one, token creation fails closed and sessions cannot be verified. Configure the secret in the deployment environment before rollout; users may need to sign in again when rotating from the old fallback.
+- Static JavaScript/CSS chunks and public brand assets are expected to be publicly downloadable and must not contain credentials or private records. HTTPS protects requests in transit on public Wi-Fi; it does not protect a compromised device, browser extension, or stolen signed-in session.
+- Validation not run in this turn.
+
 ---
 
 ## Phase Tracker
