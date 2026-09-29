@@ -174,6 +174,16 @@
 - Validation: migration 011 applied successfully; `npm run type-check`, `npm run lint` (0 errors; three existing `<img>` optimization warnings), `git diff --check`, and `npm run build` passed. Next.js reported its existing middleware convention deprecation warning.
 - Hydration fix validation: `npm run type-check`, `npm run lint`, `git diff --check`, and `npm run build` passed.
 
+## Responsive Attendance, Dialog, and Tour Cards (2026-09-29)
+
+- Session attendance now switches to stacked attendee cards below 1280px and a fixed-layout table at 1280px and above. Long contact and response values wrap inside defined columns, and the cards/table rows open the existing full-submission modal.
+- Added scroll-triggered GSAP row reveals, SplitText heading entrance, CustomEase timing, and GSAP Flip from the selected attendee into the modal. The modal, showcase details, and roster reveals honor reduced-motion preferences.
+- Added a low-density Three.js ambient particle layer that initializes on approach, pauses off-screen, and is skipped for reduced-motion users. Existing lazy Lottie wrappers provide roster loading, empty, and verified states.
+- Constrained modal and alert dialogs to the dynamic viewport, added safe-area padding and wrapping for long content, and made the account error notice fit mobile widths.
+- Made Driver.js tour popovers scale to the viewport width and height, with smaller guide artwork and controls on narrow or short screens.
+- Motion could not be added: npm registry requests repeatedly failed with `ECONNRESET`, including the approved install retry. The roster/modal transitions use the existing GSAP and Flip dependencies until Motion can be installed.
+- Validation: `npm run type-check` and the Node 22 production build passed; `npm run lint` has no errors (three existing image optimization warnings); `git diff --check` passed. Next.js reports its existing middleware convention deprecation warning.
+
 ---
 
 ## Phase Tracker

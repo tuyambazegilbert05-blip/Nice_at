@@ -13,6 +13,7 @@ export const MOTION_EASE = {
   exit: 'power2.in',
   smooth: 'power2.inOut',
   energy: 'sine.inOut',
+  brand: 'niceClubEase',
 } as const
 
 export const MOTION_BREAKPOINTS = {

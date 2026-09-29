@@ -15,24 +15,24 @@ function AccessDeniedDialog({ message, onClose }: { message: string; onClose: ()
 
   return (
     <div
-      className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/35 p-4"
+      className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto overscroll-contain bg-slate-950/35 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-5"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}
     >
-      <section role="alertdialog" aria-modal="true" aria-labelledby="access-denied-title" className="w-full max-w-md rounded-2xl border border-rose-200 bg-white p-5 shadow-2xl sm:p-6">
+      <section role="alertdialog" aria-modal="true" aria-labelledby="access-denied-title" className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-rose-200 bg-white p-4 shadow-2xl sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
             <ShieldAlert aria-hidden="true" className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
             <h2 id="access-denied-title" className="font-semibold text-slate-900">Access denied</h2>
-            <p className="mt-1.5 text-sm leading-6 text-rose-700">{message.replace(/^Access denied:\s*/i, '')}</p>
+            <p className="mt-1.5 break-words text-sm leading-6 text-rose-700">{message.replace(/^Access denied:\s*/i, '')}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close access denied message" className="-mr-1 -mt-1 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
             <X aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-5 flex justify-end">
-          <button type="button" onClick={onClose} className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2">Close</button>
+        <div className="mt-5 flex sm:justify-end">
+          <button type="button" onClick={onClose} className="w-full rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 sm:w-auto">Close</button>
         </div>
       </section>
     </div>

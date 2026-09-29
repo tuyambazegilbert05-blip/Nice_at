@@ -14,13 +14,17 @@
 }
 
 .driver-popover.nice-onboarding-popover {
-  width: min(360px, calc(100vw - 24px));
-  max-width: calc(100vw - 24px);
+  width: min(360px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid #dbeafe;
   border-radius: 14px;
   color: #0f172a;
   font-family: inherit;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.2);
+  padding: clamp(12px, 3vw, 15px);
 }
 
 .driver-popover.nice-onboarding-popover.nice-tour-enter-from-top { animation: nice-tour-enter-top 170ms cubic-bezier(.2,.8,.2,1) both; }
@@ -68,18 +72,20 @@
 }
 
 .driver-popover.nice-onboarding-popover .driver-popover-title {
-  min-height: 74px;
+  min-height: clamp(60px, 20vw, 74px);
   padding-right: 26px;
-  padding-left: 92px;
+  padding-left: clamp(70px, 24vw, 92px);
   color: #0f172a;
   font-size: 16px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .driver-popover.nice-onboarding-popover .driver-popover-description {
   color: #475569;
   font-size: 13px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .driver-popover.nice-onboarding-popover .driver-popover-close-btn {
@@ -158,6 +164,17 @@
 .driver-popover.nice-onboarding-popover .nice-onboarding-next { border-color: #0284c7; background: #0284c7; color: #fff; }
 .driver-popover.nice-onboarding-popover .nice-onboarding-next:hover,
 .driver-popover.nice-onboarding-popover .nice-onboarding-next:focus-visible { background: #0369a1; color: #fff; }
+
+@media (max-width: 420px) {
+  .nice-onboarding-guide { width: clamp(56px, 19vw, 70px); height: clamp(56px, 19vw, 70px); }
+  .driver-popover.nice-onboarding-popover .driver-popover-footer-btn { padding: 7px 8px; }
+  .driver-popover.nice-onboarding-popover .driver-popover-navigation-btns { justify-content: space-between; }
+}
+
+@media (max-height: 520px) and (prefers-reduced-motion: no-preference) {
+  .nice-onboarding-guide { width: 54px; height: 54px; }
+  .driver-popover.nice-onboarding-popover .driver-popover-title { min-height: 54px; }
+}
 
 * {
   box-sizing: border-box;

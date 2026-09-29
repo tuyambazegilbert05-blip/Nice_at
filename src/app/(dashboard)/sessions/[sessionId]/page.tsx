@@ -42,6 +42,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
   const [isOpen, setIsOpen] = useState(false)
   const [statusError, setStatusError] = useState('')
   const [attendees, setAttendees] = useState<Attendance[]>([])
+  const [attendeesLoading, setAttendeesLoading] = useState(true)
   const [attendeeError, setAttendeeError] = useState('')
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null)
   const [accessChecked, setAccessChecked] = useState(false)
@@ -83,6 +84,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
         setAttendees(attendanceResult.data)
       } catch (error) {
         setAttendeeError(error instanceof Error ? error.message : 'Unable to load attendance records')
+      } finally {
+        setAttendeesLoading(false)
       }
     }).catch((error) => setLoadError(error instanceof Error ? error.message : 'Unable to load session'))
   }, [sessionId])
@@ -326,20 +329,21 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
 
       {/* Attendance Roster Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Attendance Roster</CardTitle>
             <CardDescription>Verified participant check-ins captured through the QR link</CardDescription>
           </div>
-            {accessChecked && canExport ? <a href={`/api/exports?sessionId=${encodeURIComponent(session.id)}`} download>
-              <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export CSV</Button>
-            </a> : accessChecked ? <RestrictedActionButton message={authError || `Access denied: your ${currentRole} role cannot export attendance records. Ask an administrator or manager for access.`} variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export CSV</RestrictedActionButton> : <Button disabled variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export CSV</Button>}
+            {accessChecked && canExport ? <a className="w-full sm:w-auto" href={`/api/exports?sessionId=${encodeURIComponent(session.id)}`} download>
+              <Button variant="outline" size="sm" className="w-full justify-center sm:w-auto" leftIcon={<Download className="w-4 h-4" />}>Export CSV</Button>
+            </a> : accessChecked ? <RestrictedActionButton className="w-full justify-center sm:w-auto" message={authError || `Access denied: your ${currentRole} role cannot export attendance records. Ask an administrator or manager for access.`} variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>Export CSV</RestrictedActionButton> : <Button disabled variant="outline" size="sm" className="w-full justify-center sm:w-auto" leftIcon={<Download className="w-4 h-4" />}>Export CSV</Button>}
         </CardHeader>
         <CardContent>
           <SessionAttendeesTable
             records={attendees}
             questions={session.questions}
             error={attendeeError}
+            loading={attendeesLoading}
             emptyMessage="No attendees have checked in yet. Share the QR code with participants."
           />
         </CardContent>

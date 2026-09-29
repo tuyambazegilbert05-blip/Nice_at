@@ -9,13 +9,14 @@ import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
 export interface ModalProps {
   isOpen: boolean
   onClose: () => void
-  title?: string
+  title?: React.ReactNode
   description?: string
   children: React.ReactNode
   className?: string
+  panelRef?: React.RefObject<HTMLDivElement | null>
 }
 
-export function Modal({ isOpen, onClose, title, description, children, className }: ModalProps) {
+export function Modal({ isOpen, onClose, title, description, children, className, panelRef }: ModalProps) {
   const dialog = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
   const closing = useRef(false)
@@ -26,13 +27,16 @@ export function Modal({ isOpen, onClose, title, description, children, className
     const panel = dialog.current
     const shade = backdrop.current
     if (!panel || !shade || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      closing.current = false
       onClose()
       return
     }
-    gsap.timeline({ onComplete: onClose })
-      .to(panel, { autoAlpha: 0, y: 6, scale: 0.99, duration: MOTION_DURATION.micro, ease: MOTION_EASE.exit }, 0)
+    const timeline = gsap.timeline({ onComplete: () => { closing.current = false; onClose() } })
+    if (panelRef) timeline.to(panelRef.current, { autoAlpha: 0, duration: MOTION_DURATION.micro, ease: MOTION_EASE.exit }, 0)
+    else timeline.to(panel, { autoAlpha: 0, y: 6, scale: 0.99, duration: MOTION_DURATION.micro, ease: MOTION_EASE.exit }, 0)
+    timeline
       .to(shade, { autoAlpha: 0, duration: MOTION_DURATION.micro, ease: MOTION_EASE.exit }, 0)
-  }, [onClose])
+  }, [onClose, panelRef])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,7 +54,9 @@ export function Modal({ isOpen, onClose, title, description, children, className
       if (panel && shade) {
         media.add('(prefers-reduced-motion: no-preference)', () => {
           gsap.fromTo(shade, { autoAlpha: 0 }, { autoAlpha: 1, duration: MOTION_DURATION.short, ease: MOTION_EASE.standard })
-          gsap.fromTo(panel, { autoAlpha: 0, y: 10, scale: 0.985 }, { autoAlpha: 1, y: 0, scale: 1, duration: MOTION_DURATION.standard, ease: MOTION_EASE.enter })
+          if (!panelRef) {
+            gsap.fromTo(panel, { autoAlpha: 0, y: 10, scale: 0.985 }, { autoAlpha: 1, y: 0, scale: 1, duration: MOTION_DURATION.standard, ease: MOTION_EASE.enter })
+          }
         })
         media.add('(prefers-reduced-motion: reduce)', () => gsap.set([shade, panel], { autoAlpha: 1, clearProps: 'transform' }))
         panel.querySelector<HTMLElement>('button, input, select, textarea, [tabindex]:not([tabindex="-1"])')?.focus()
@@ -78,7 +84,7 @@ export function Modal({ isOpen, onClose, title, description, children, className
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen, close])
+  }, [isOpen, close, panelRef])
 
   if (!isOpen || typeof document === 'undefined') return null
 
@@ -88,41 +94,33 @@ export function Modal({ isOpen, onClose, title, description, children, className
       aria-modal="true"
       aria-labelledby={title ? 'nice-modal-title' : undefined}
       ref={dialog}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-6"
     >
-      {/* Backdrop */}
-      <div
-        ref={backdrop}
-        className="fixed inset-0 bg-slate-900/25 backdrop-blur-[2px]"
-        onClick={close}
-        aria-hidden="true"
-      />
-
-      {/* Modal Surface */}
-      <div
-        className={cn(
-          'relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200 z-10',
-          className
-        )}
-      >
-        <div className="flex items-start justify-between pb-4 border-b border-slate-100">
-          <div>
-            {title && <h3 id="nice-modal-title" className="text-lg font-semibold text-slate-900">{title}</h3>}
-            {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
+        <div ref={backdrop} className="fixed inset-0 bg-slate-900/25 backdrop-blur-[2px]" onClick={close} aria-hidden="true" />
+        <div
+          ref={panelRef}
+          className={cn(
+            'relative max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 shadow-xl sm:max-h-[calc(100dvh-3rem)] sm:p-6',
+            className
+          )}
+        >
+          <div className="flex min-w-0 items-start justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="min-w-0 flex-1">
+              {title && <h3 id="nice-modal-title" className="break-words text-base font-semibold text-slate-900 sm:text-lg">{title}</h3>}
+              {description && <p className="mt-1 break-words text-xs leading-relaxed text-slate-500">{description}</p>}
+            </div>
+            <button
+              onClick={close}
+              aria-label="Close modal"
+              className="shrink-0 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nice-blue-500"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={close}
-            aria-label="Close modal"
-            className="rounded-lg p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="mt-3 min-w-0 sm:mt-4">{children}</div>
         </div>
-
-        <div className="mt-4">{children}</div>
-      </div>
     </div>
   ), document.body)
 }
