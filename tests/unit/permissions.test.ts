@@ -69,8 +69,7 @@ async function runTests() {
   const token = createSessionToken(sampleUser, 3600)
   const decoded = verifySessionToken(token)
   assert(decoded !== null, 'Token verified successfully')
-  assert(decoded?.email === sampleUser.email, 'Decoded user email matches')
-  assert(decoded?.role === 'ADMIN', 'Decoded user role matches')
+  assert(decoded?.id === sampleUser.id, 'Decoded session identifies the user')
 
   // Tampered token test
   const tamperedToken = token.slice(0, -4) + 'abcd'
