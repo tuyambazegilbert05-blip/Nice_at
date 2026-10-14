@@ -19,14 +19,15 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { name: 'Participants', href: '/participants' },
   { name: 'Analytics', href: '/analytics' },
   { name: 'Communications', href: '/communications' },
+  { name: 'Forms', href: '/forms' },
   { name: 'Platform Tools', href: '/resources' },
   { name: 'Settings', href: '/settings' },
   { name: 'Account', href: '/account' },
 ]
 
 const NAVIGATION_GROUPS = [
-  { label: 'Operations', items: NAVIGATION_ITEMS.slice(0, 7) },
-  { label: 'Workspace', items: NAVIGATION_ITEMS.slice(7) },
+  { label: 'Operations', items: NAVIGATION_ITEMS.slice(0, 8) },
+  { label: 'Workspace', items: NAVIGATION_ITEMS.slice(8) },
 ]
 export function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname()

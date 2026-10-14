@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test:motion": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/unit/motion.test.mjs",
+    "test:forms": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/unit/forms.test.mjs",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:seed-admin": "node scripts/db-seed-admin.mjs"
   },

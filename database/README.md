@@ -1,5 +1,7 @@
 # PostgreSQL data store
 
+The new Custom Forms section stores its data independently from Scientific Sessions and their attendance tables. Stand-alone forms, immutable published snapshots, submissions, rate-limit buckets, and confirmation-email attempts each use separate tables.
+
 PostgreSQL is the persistent source of truth for staff accounts and profiles, invitations, password resets, sessions, session form questions, attendee check-ins, email-update consent, email delivery records, and staff activity. Application code accesses it through the server-only pool in `src/lib/database/client.ts`; browser code calls Next.js API routes instead of connecting to the database.
 
 ## Initialize a database
@@ -18,6 +20,12 @@ PostgreSQL is the persistent source of truth for staff accounts and profiles, in
 - `users.avatar_url`: optional profile image link.
 - `sessions`: schedule, unique cryptographic public token, status, duplicate policy, creator, and temporary attendance-extension expiry.
 - `session_questions`: ordered form definitions for each session.
+- `custom_forms`: stand-alone public forms with independent event details, server-saved drafts, stable public tokens, separate draft/published configurations, and response opening/closing timestamps. These rows do not reference `sessions`. Migration 013 backfills existing response windows and adds an index for published schedule lookups.
+- `custom_form_versions`: immutable published field snapshots for historical responses.
+- `custom_form_submissions`: private responses keyed to their original form version, with normalized email and idempotency protection.
+- `custom_form_email_deliveries`: provider-acceptance/failure attempts for form confirmation messages. A provider acceptance is not evidence of inbox delivery.
+- `custom_form_email_templates`: administrator-editable default confirmation subject, heading, and outreach message.
+- `custom_form_rate_limits`: hashed-client rate-limit buckets for public form submissions.
 - `attendance_records`: private attendee details, normalized email, submitted responses, and UTC timestamp.
 - `user_invitations`: hashed, seven-day staff invitation links and acceptance timestamps.
 - `email_delivery_log`: recipient, category, provider result, and timestamp for each attempt; message bodies and API secrets are not stored.
