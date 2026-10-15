@@ -107,6 +107,8 @@ export default function CustomFormEditor({ initialForm, canManageTemplate }: {
 
   const queueSave = useCallback((next: AttendanceFormConfig) => {
     const json = JSON.stringify(next)
+    configRef.current = next
+    setConfig(next)
     pendingRef.current = { config: next, json }
     setStatus('dirty')
     try { localStorage.setItem(localDraftKey, JSON.stringify({ revision: revisionRef.current, config: next, savedAt: Date.now() } satisfies LocalDraft)) }

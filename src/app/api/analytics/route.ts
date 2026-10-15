@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getGlobalAnalytics, parseAnalyticsFilters } from '../../../lib/analytics/analytics-service'
+import { getCustomFormsAnalytics, getGlobalAnalytics, parseAnalyticsFilters } from '../../../lib/analytics/analytics-service'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 
@@ -10,8 +10,11 @@ export async function GET(request: NextRequest) {
     if (!hasPermission(user.role, 'attendance:view')) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
 
     const filters = parseAnalyticsFilters(Object.fromEntries(request.nextUrl.searchParams.entries()))
-    const data = await getGlobalAnalytics(filters)
-    return NextResponse.json({ success: true, data }, { headers: { 'Cache-Control': 'no-store' } })
+    const [data, customForms] = await Promise.all([
+      getGlobalAnalytics(filters),
+      getCustomFormsAnalytics(filters),
+    ])
+    return NextResponse.json({ success: true, data, customForms }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     console.error('Error computing analytics:', error)
     return NextResponse.json(

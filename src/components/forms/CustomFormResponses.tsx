@@ -2,13 +2,14 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, BarChart3, ChevronRight, Download, Search, Share2, Users } from 'lucide-react'
+import { ArrowLeft, BarChart3, ChevronRight, Download, Eye, Search, Share2, Users } from 'lucide-react'
 import type { AttendanceResponseValue } from '../../lib/forms/attendance-form'
 import type { CustomForm, CustomFormSubmission } from '../../lib/forms/form-service'
 import { formatDateTime } from '../../utils/date'
 import { Button } from '../ui/Button'
 import { Card, CardContent } from '../ui/Card'
 import { Modal } from '../ui/Modal'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table'
 import { CustomFormBrand } from './CustomFormBrand'
 
 type EmailStatus = 'ACCEPTED' | 'FAILED' | 'PENDING'
@@ -19,6 +20,48 @@ function responseValue(value: AttendanceResponseValue | undefined): string {
   if (Array.isArray(value)) return value.join(', ')
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   return String(value)
+}
+
+function hasResponseValue(value: AttendanceResponseValue | undefined) {
+  if (value === undefined) return false
+  if (Array.isArray(value)) return value.length > 0
+  return typeof value !== 'string' || value.trim().length > 0
+}
+
+function emailStatusLabel(status: EmailStatus) {
+  if (status === 'ACCEPTED') return 'Email accepted'
+  if (status === 'FAILED') return 'Email failed'
+  return 'Email pending'
+}
+
+function emailStatusClass(status: EmailStatus) {
+  if (status === 'ACCEPTED') return 'bg-emerald-50 text-emerald-800'
+  if (status === 'FAILED') return 'bg-rose-50 text-rose-800'
+  return 'bg-amber-50 text-amber-800'
+}
+
+function phoneNumber(submission: ResponseRecord) {
+  const value = submission.responses.phone
+  return hasResponseValue(value) ? responseValue(value) : null
+}
+
+function responseHighlights(submission: ResponseRecord) {
+  return submission.formSnapshot.fields
+    .filter((field) => field.visible && !['full_name', 'email', 'phone'].includes(field.id) && field.type !== 'CONSENT' && hasResponseValue(submission.responses[field.id]))
+    .sort((left, right) => left.order - right.order)
+    .slice(0, 3)
+}
+
+function ResponseHighlights({ submission, compact = false }: { submission: ResponseRecord; compact?: boolean }) {
+  const fields = responseHighlights(submission)
+  if (!fields.length) return <span className="italic text-slate-400">No additional answers</span>
+
+  return <span className={`block ${compact ? 'space-y-1.5' : 'space-y-2'}`}>
+    {fields.map((field) => <span key={field.id} className="block min-w-0">
+      <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-400">{field.label}</span>
+      <span className={`mt-0.5 block break-words text-slate-700 ${compact ? 'line-clamp-1 text-xs' : 'line-clamp-2 text-xs leading-relaxed'}`}>{responseValue(submission.responses[field.id])}</span>
+    </span>)}
+  </span>
 }
 
 function FullResponse({ submission, canRetryEmail, retrying, onRetryEmail }: { submission: ResponseRecord; canRetryEmail: boolean; retrying: boolean; onRetryEmail: () => void }) {
@@ -87,12 +130,70 @@ export function CustomFormResponses({ form, submissions: initialSubmissions, can
       <label className="sr-only" htmlFor="email-filter">Filter by confirmation email status</label><select id="email-filter" value={emailFilter} onChange={(event) => setEmailFilter(event.target.value as typeof emailFilter)} className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700"><option value="ALL">All email statuses</option><option value="ACCEPTED">Provider accepted</option><option value="FAILED">Email failed</option><option value="PENDING">Email pending</option></select>
     </div>
     {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-    {visible.length === 0 ? <Card><CardContent className="py-10 text-center"><Users className="mx-auto h-7 w-7 text-sky-700" /><p className="mt-3 text-sm text-slate-600">{submissions.length ? 'No responses match those filters.' : 'Responses will appear here after attendees submit the published form.'}</p></CardContent></Card> : <div className="space-y-3">
-      {visible.map((submission) => <Card key={submission.id} role="button" tabIndex={0} aria-haspopup="dialog" aria-label={`Open response from ${submission.fullName}`} onClick={() => setSelected(submission)} onKeyDown={(event) => { if ((event.target as HTMLElement).closest('button,a,input,select,textarea')) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(submission) } }} className="cursor-pointer transition hover:border-sky-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"><CardContent className="p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words font-semibold text-slate-900">{submission.fullName}</h2><p className="mt-0.5 break-all text-sm text-slate-600">{submission.email}</p><p className="mt-1 text-xs text-slate-400">{formatDateTime(submission.submittedAt)} · form v{submission.formVersion}</p></div><div className="flex items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${submission.emailStatus === 'ACCEPTED' ? 'bg-emerald-50 text-emerald-800' : submission.emailStatus === 'FAILED' ? 'bg-rose-50 text-rose-800' : 'bg-amber-50 text-amber-800'}`}>{submission.emailStatus === 'ACCEPTED' ? 'Email accepted' : submission.emailStatus === 'FAILED' ? 'Email failed' : 'Email pending'}</span><ChevronRight className="h-4 w-4 text-sky-700" aria-hidden="true" /></div></div>
-        <p className="mt-3 text-xs font-semibold text-sky-700">Open full submission</p>
-      </CardContent></Card>)}
-    </div>}
+    {visible.length === 0 ? <Card><CardContent className="py-10 text-center"><Users className="mx-auto h-7 w-7 text-sky-700" /><p className="mt-3 text-sm text-slate-600">{submissions.length ? 'No responses match those filters.' : 'Responses will appear here after attendees submit the published form.'}</p></CardContent></Card> : <Card className="overflow-hidden">
+      <CardContent className="p-0">
+        <p className="border-b border-slate-100 px-4 py-3 text-xs text-slate-500 sm:px-5">Select a response to view the full submitted form.</p>
+        <div className="grid grid-cols-1 gap-3 p-3 xl:hidden sm:p-4">
+          {visible.map((submission) => <button
+            key={submission.id}
+            type="button"
+            aria-haspopup="dialog"
+            aria-label={`View full form response from ${submission.fullName}`}
+            onClick={() => setSelected(submission)}
+            className="w-full min-w-0 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-sky-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 sm:p-5"
+          >
+            <span className="flex min-w-0 items-start justify-between gap-3">
+              <span className="min-w-0"><span className="block break-words text-sm font-bold text-slate-900 sm:text-base">{submission.fullName}</span><span className="mt-1 block break-all text-xs text-slate-600">{submission.email}</span></span>
+              <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-sky-700" aria-hidden="true" />
+            </span>
+            <span className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2">
+              <span className="min-w-0 text-xs text-slate-700"><span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-400">Phone</span><span className="mt-0.5 block break-words">{phoneNumber(submission) || 'Not provided'}</span></span>
+              <span className="min-w-0 text-xs text-slate-700"><span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-400">Confirmation</span><span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${emailStatusClass(submission.emailStatus)}`}>{emailStatusLabel(submission.emailStatus)}</span></span>
+            </span>
+            <span className="mt-3 block min-w-0 border-t border-slate-100 pt-3 text-xs text-slate-600"><span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-400">Response highlights</span><ResponseHighlights submission={submission} /></span>
+            <span className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500"><span>Submitted {formatDateTime(submission.submittedAt)} · form v{submission.formVersion}</span><span className="font-semibold text-sky-700">View full response</span></span>
+          </button>)}
+        </div>
+        <div className="hidden xl:block">
+          <Table className="table-fixed">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[16%]">Name</TableHead>
+                <TableHead className="w-[20%]">Email / phone</TableHead>
+                <TableHead className="w-[32%]">Response highlights</TableHead>
+                <TableHead className="w-[13%]">Confirmation</TableHead>
+                <TableHead className="w-[16%]">Submitted</TableHead>
+                <TableHead className="w-[3%]"><span className="sr-only">Response details</span><Eye className="h-3.5 w-3.5" aria-hidden="true" /></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visible.map((submission) => <TableRow
+                key={submission.id}
+                role="button"
+                tabIndex={0}
+                aria-haspopup="dialog"
+                aria-label={`View full form response from ${submission.fullName}`}
+                onClick={() => setSelected(submission)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    setSelected(submission)
+                  }
+                }}
+                className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"
+              >
+                <TableCell className="whitespace-normal break-words font-semibold text-slate-900">{submission.fullName}</TableCell>
+                <TableCell className="whitespace-normal"><span className="block break-all">{submission.email}</span><span className="break-words text-xs text-slate-500">{phoneNumber(submission) || 'No phone provided'}</span></TableCell>
+                <TableCell className="whitespace-normal"><ResponseHighlights submission={submission} compact /></TableCell>
+                <TableCell className="whitespace-normal"><span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase ${emailStatusClass(submission.emailStatus)}`}>{emailStatusLabel(submission.emailStatus)}</span></TableCell>
+                <TableCell className="whitespace-normal break-words text-xs leading-relaxed text-slate-600">{formatDateTime(submission.submittedAt)}<span className="mt-1 block text-[10px] text-slate-400">Form v{submission.formVersion}</span></TableCell>
+                <TableCell className="text-sky-700"><ChevronRight className="h-4 w-4" aria-hidden="true" /></TableCell>
+              </TableRow>)}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>}
     <Modal isOpen={Boolean(selected)} onClose={closeModal} title={selected?.fullName || 'Form response'} description="Complete submitted answers from the saved form version" className="max-w-3xl overflow-hidden p-4 sm:p-6">{selected && <FullResponse key={selected.id} submission={selected} canRetryEmail={canRetryEmail} retrying={retryingId === selected.id} onRetryEmail={() => void retryEmail(selected.id)} />}</Modal>
   </div>
 }

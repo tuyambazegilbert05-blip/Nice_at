@@ -3,6 +3,7 @@ import type {
   AnalyticsFilters,
   AnalyticsSessionOption,
   AnalyticsSessionSummary,
+  CustomFormsAnalytics,
   DistributionItem,
   GlobalAnalytics,
   SessionAnalytics,
@@ -228,6 +229,62 @@ export async function getGlobalAnalytics(filters: AnalyticsFilters = {}): Promis
       .slice(0, 5)
       .map(mapSession),
     sessionOptions: sessionsResult.rows.map(mapSession),
+  }
+}
+
+export async function getCustomFormsAnalytics(filters: Pick<AnalyticsFilters, 'dateFrom' | 'dateTo'> = {}): Promise<CustomFormsAnalytics> {
+  const values = [filters.dateFrom || null, filters.dateTo || null]
+  const { overviewResult, monthlyResult, formsResult } = await withConnection(async (client) => {
+    const overviewResult = await client.query<{
+      total_responses: number | string
+      unique_respondents: number | string
+      published_forms: number | string
+    }>(`
+      SELECT count(submission.id)::int AS total_responses,
+        count(DISTINCT lower(BTRIM(submission.email)))::int AS unique_respondents,
+        (SELECT count(*)::int FROM custom_forms WHERE status='PUBLISHED' AND archived_at IS NULL) AS published_forms
+      FROM custom_form_submissions submission
+      WHERE ($1::date IS NULL OR submission.submitted_at >= ($1::date::timestamp AT TIME ZONE 'Africa/Kigali'))
+        AND ($2::date IS NULL OR submission.submitted_at < (($2::date + 1)::timestamp AT TIME ZONE 'Africa/Kigali'))
+    `, values)
+    const monthlyResult = await client.query<{ month: string; responses: number | string }>(`
+      WITH current_month AS (
+        SELECT date_trunc('month', now() AT TIME ZONE 'Africa/Kigali') AS month_start
+      ), months AS (
+        SELECT generate_series(month_start - interval '11 months', month_start, interval '1 month') AS month_start
+        FROM current_month
+      )
+      SELECT to_char(months.month_start, 'YYYY-MM') AS month, count(submission.id)::int AS responses
+      FROM months LEFT JOIN custom_form_submissions submission
+        ON submission.submitted_at >= (months.month_start AT TIME ZONE 'Africa/Kigali')
+        AND submission.submitted_at < ((months.month_start + interval '1 month') AT TIME ZONE 'Africa/Kigali')
+        AND ($1::date IS NULL OR submission.submitted_at >= ($1::date::timestamp AT TIME ZONE 'Africa/Kigali'))
+        AND ($2::date IS NULL OR submission.submitted_at < (($2::date + 1)::timestamp AT TIME ZONE 'Africa/Kigali'))
+      GROUP BY months.month_start ORDER BY months.month_start
+    `, values)
+    const formsResult = await client.query<{ id: string; title: string; status: string; archived: boolean; responses: number | string }>(`
+      SELECT form.id,form.title,form.status,(form.archived_at IS NOT NULL) AS archived,count(submission.id)::int AS responses
+      FROM custom_forms form LEFT JOIN custom_form_submissions submission
+        ON submission.form_id=form.id
+        AND ($1::date IS NULL OR submission.submitted_at >= ($1::date::timestamp AT TIME ZONE 'Africa/Kigali'))
+        AND ($2::date IS NULL OR submission.submitted_at < (($2::date + 1)::timestamp AT TIME ZONE 'Africa/Kigali'))
+      GROUP BY form.id ORDER BY responses DESC,form.created_at DESC
+    `, values)
+    return { overviewResult, monthlyResult, formsResult }
+  })
+
+  const overview = overviewResult.rows[0]
+  const totalResponses = Number(overview?.total_responses || 0)
+  const forms = formsResult.rows.map((row) => {
+    const responses = Number(row.responses)
+    return { ...row, responses, percentage: totalResponses ? Math.round(responses / totalResponses * 100) : 0 }
+  })
+  return {
+    totalResponses,
+    uniqueRespondents: Number(overview?.unique_respondents || 0),
+    publishedForms: Number(overview?.published_forms || 0),
+    responsesByMonth: monthlyResult.rows.map((row) => ({ month: row.month, responses: Number(row.responses) })),
+    forms,
   }
 }
 

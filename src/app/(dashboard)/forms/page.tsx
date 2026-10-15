@@ -30,7 +30,9 @@ export default async function FormsPage() {
   const acceptingForms = forms.filter((form) => getResponseWindowState(form) === 'ACCEPTING').length
 
   return <div className="space-y-6">
-    <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+    <header className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/70 to-emerald-50/50 p-5 shadow-sm sm:p-6">
+      <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full border-[18px] border-sky-100/70" />
+      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 text-sky-700"><ClipboardList className="h-5 w-5" /></span>
         <div><h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Custom Forms</h1><p className="mt-1 max-w-2xl text-sm text-slate-600">Manage independent attendance forms, published links, attendee records, and form analytics. These forms do not change Scientific Sessions or its check-in flow.</p></div>
@@ -38,6 +40,7 @@ export default async function FormsPage() {
       <div className="flex flex-wrap gap-2">
         {canManageTemplate && <Link href="/forms/email-template"><Button variant="outline" size="sm" leftIcon={<Mail className="h-4 w-4" />}>Confirmation email</Button></Link>}
         {canCreate && <Link href="/forms/new"><Button variant="primary" leftIcon={<Plus className="h-4 w-4" />}>Create form</Button></Link>}
+      </div>
       </div>
     </header>
 
@@ -48,7 +51,7 @@ export default async function FormsPage() {
     </div>
 
     {forms.length === 0 ? <Card><CardContent className="flex flex-col items-center py-14 text-center"><ClipboardList className="h-10 w-10 text-sky-700" /><h2 className="mt-4 text-lg font-semibold text-slate-900">No active custom forms</h2><p className="mt-1 max-w-md text-sm text-slate-500">Create a stand-alone attendance form, customize the questions, then publish a shareable link.</p>{canCreate && <Link href="/forms/new" className="mt-5"><Button variant="primary" leftIcon={<FilePlus2 className="h-4 w-4" />}>Create a form</Button></Link>}</CardContent></Card> : <div className="grid gap-4 lg:grid-cols-2">
-      {forms.map((form) => <Card key={form.id} className="group relative cursor-pointer overflow-hidden transition hover:border-sky-200 hover:shadow-md">
+      {forms.map((form) => <Card key={form.id} className="group relative cursor-pointer overflow-hidden border-slate-200 bg-white transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg">
         <Link href={`/forms/${encodeURIComponent(form.id)}`} aria-label={`Open ${form.title} attendees and analytics`} className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"><span className="sr-only">Open attendees and analytics for {form.title}</span></Link>
         <CardContent className="pointer-events-none relative z-10 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">

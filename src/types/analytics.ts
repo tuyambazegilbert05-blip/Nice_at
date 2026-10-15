@@ -27,6 +27,14 @@ export interface AnalyticsSessionSummary extends AnalyticsSessionOption {
   attendance: number
 }
 
+export interface CustomFormsAnalytics {
+  totalResponses: number
+  uniqueRespondents: number
+  publishedForms: number
+  responsesByMonth: Array<{ month: string; responses: number }>
+  forms: Array<{ id: string; title: string; status: string; archived: boolean; responses: number; percentage: number }>
+}
+
 export interface AnalyticsFilters {
   dateFrom?: string
   dateTo?: string

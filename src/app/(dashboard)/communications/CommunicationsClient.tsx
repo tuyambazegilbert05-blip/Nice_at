@@ -2,10 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Mail, Send } from 'lucide-react'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { RestrictedActionPanel } from '../../../components/ui/RestrictedAction'
 import type { UserRole } from '../../../types/user'
 
-type Recipient = { email: string; name: string; category: 'Team' | 'Opted-in attendee' }
+type Recipient = { email: string; name: string; category: 'Team' | 'Opted-in participant' }
 
 export default function CommunicationsClient({ canCommunicate = true, role }: { canCommunicate?: boolean; role: UserRole }) {
   const [recipients, setRecipients] = useState<Recipient[]>([])
@@ -16,6 +17,7 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
   const [preview, setPreview] = useState('')
   const [loading, setLoading] = useState(canCommunicate)
   const [sending, setSending] = useState(false)
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
 
@@ -54,14 +56,18 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
     setSelected((current) => current.includes(email) ? current.filter((item) => item !== email) : [...current, email])
   }
 
-  async function send(event: FormEvent) {
+  function reviewSend(event: FormEvent) {
     event.preventDefault()
     if (!canCommunicate) return setError(`Access denied: your ${role} role cannot use communications.`)
     setStatus('')
     setError('')
     if (!finalRecipients.length) return setError('Select or enter at least one recipient.')
     if (finalRecipients.length > 100) return setError('Send to no more than 100 recipients at a time.')
-    if (!window.confirm(`Send “${subject}” to ${finalRecipients.length} recipient(s)?`)) return
+    setSendConfirmOpen(true)
+  }
+
+  async function sendEmails() {
+    setSendConfirmOpen(false)
     setSending(true)
     try {
       const response = await fetch('/api/communications', {
@@ -78,7 +84,7 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
   }
 
   const team = recipients.filter((recipient) => recipient.category === 'Team')
-  const attendees = recipients.filter((recipient) => recipient.category === 'Opted-in attendee')
+  const optedInParticipants = recipients.filter((recipient) => recipient.category === 'Opted-in participant')
 
   return <div data-tour="platform-communications" aria-busy={canCommunicate && loading} className="space-y-6">
     <header className="flex items-start gap-3 border-b border-slate-200 pb-4">
@@ -88,15 +94,15 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
     <RestrictedActionPanel
       enabled={!canCommunicate}
       message={`Access denied: your ${role} role cannot view recipients, preview messages, or send communications. Contact an administrator if you need access.`}
-    ><form onSubmit={send}>
+    ><form onSubmit={reviewSend}>
       <fieldset disabled={!canCommunicate} aria-disabled={!canCommunicate} className="grid min-w-0 grid-cols-1 gap-6 border-0 p-0 xl:grid-cols-2">
       <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div><h2 className="font-semibold text-slate-900">Recipients</h2><p className="mt-1 text-xs text-slate-500">Bulk updates include attendees who opted in at check-in. You can also enter addresses directly.</p></div>
+        <div><h2 className="font-semibold text-slate-900">Recipients</h2><p className="mt-1 text-xs text-slate-500">Bulk updates include people who explicitly opted in through a session or Custom Form. You can also enter addresses directly.</p></div>
         {loading ? <p className="text-sm text-slate-500">Loading contacts…</p> : error && !recipients.length ? <p role="alert" className="text-sm text-rose-700">{error}</p> : <>
           <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setSelected(recipients.map((item) => item.email))} className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700">Select all available</button><button type="button" onClick={() => setSelected([])} className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700">Clear</button><span className="self-center text-xs text-slate-500">{selected.length} selected</span></div>
           <div className="max-h-56 space-y-4 overflow-auto rounded-lg border border-slate-200 p-3">
-            {(['Team', 'Opted-in attendee'] as const).map((category) => {
-              const items = category === 'Team' ? team : attendees
+            {(['Team', 'Opted-in participant'] as const).map((category) => {
+              const items = category === 'Team' ? team : optedInParticipants
               return <fieldset key={category}><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{category} ({items.length})</legend>{items.length ? <div className="space-y-2">{items.map((item) => <label key={`${category}-${item.email}`} className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={selected.includes(item.email)} onChange={() => toggle(item.email)} className="rounded border-slate-300 text-sky-700 focus:ring-sky-600" /><span className="min-w-0 truncate">{item.name} <span className="text-slate-400">{item.email}</span></span></label>)}</div> : <p className="text-xs text-slate-400">No contacts</p>}</fieldset>
             })}
           </div>
@@ -111,5 +117,13 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
       <section className="space-y-3"><div><h2 className="font-semibold text-slate-900">Branded email preview</h2><p className="mt-1 text-xs text-slate-500">This preview uses the same NiCE Club template and escaped message content used for delivery.</p></div><iframe title="Branded email preview" sandbox="" srcDoc={preview} className="h-[680px] w-full rounded-xl border border-slate-200 bg-slate-100" /></section>
       </fieldset>
     </form></RestrictedActionPanel>
+    <ConfirmDialog
+      isOpen={sendConfirmOpen}
+      onClose={() => setSendConfirmOpen(false)}
+      onConfirm={() => void sendEmails()}
+      title="Confirm email delivery"
+      message={`Send “${subject}” to ${finalRecipients.length} recipient(s)?`}
+      confirmLabel="Send emails"
+    />
   </div>
 }

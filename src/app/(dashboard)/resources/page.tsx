@@ -7,7 +7,7 @@ const tools = [
   { title: 'Sessions', description: 'View scheduled sessions, open a session, or create a new one.', href: '/sessions', icon: CalendarDays },
   { title: 'Custom Forms', description: 'Build and publish independent attendance forms with their own response records.', href: '/forms', icon: FilePlus2 },
   { title: 'Attendance', description: 'Review check-in records saved for your organization.', href: '/attendance', icon: ClipboardCheck },
-  { title: 'Participants', description: 'Search participant records collected through session check-in.', href: '/participants', icon: Users },
+  { title: 'Participants', description: 'Search people collected through session check-ins and Custom Form responses.', href: '/participants', icon: Users },
   { title: 'Analytics', description: 'Explore attendance trends and session summaries from recorded data.', href: '/analytics', icon: Activity },
 ]
 

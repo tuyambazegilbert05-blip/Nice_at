@@ -10,6 +10,7 @@ import { formatDateTime } from '../../utils/date'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 
 export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride, canArchive, responseOverrideActive }: {
   form: CustomForm
@@ -23,6 +24,7 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
   const [overrideMinutes, setOverrideMinutes] = useState(10)
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [password, setPassword] = useState('')
@@ -54,9 +56,7 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
     }
   }
 
-  async function toggleResponses() {
-    const opening = responseState !== 'ACCEPTING'
-    if (!opening && !window.confirm('Close responses for this form now? People will no longer be able to submit.')) return
+  async function updateResponseState(opening: boolean) {
     setBusy(true)
     setError('')
     try {
@@ -67,6 +67,15 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Could not ${opening ? 'open' : 'close'} responses.`)
     } finally { setBusy(false) }
+  }
+
+  function toggleResponses() {
+    const opening = responseState !== 'ACCEPTING'
+    if (!opening) {
+      setCloseConfirmOpen(true)
+      return
+    }
+    void updateResponseState(true)
   }
 
   async function toggleOverride() {
@@ -126,7 +135,7 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
         {!archived && published && <Button variant="outline" size="sm" disabled={copied} onClick={() => void copyPublicLink()} leftIcon={copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}>{copied ? 'Copied' : 'Copy Link'}</Button>}
         <Link href={`/forms/${encodeURIComponent(form.id)}/responses`}><Button variant="outline" size="sm" leftIcon={<Users className="h-4 w-4" />}>Responses</Button></Link>
         {!archived && published && <Link href={`/form/${encodeURIComponent(form.publicToken)}`} target="_blank" rel="noreferrer"><Button variant="outline" size="sm" leftIcon={<ExternalLink className="h-4 w-4" />}>Open Form</Button></Link>}
-        {!archived && canEdit && published && <Button variant="outline" size="sm" disabled={busy} onClick={() => void toggleResponses()}>{responseState === 'ACCEPTING' ? 'Close Responses' : 'Open Responses'}</Button>}
+        {!archived && canEdit && published && <Button variant="outline" size="sm" disabled={busy} onClick={toggleResponses}>{responseState === 'ACCEPTING' ? 'Close Responses' : 'Open Responses'}</Button>}
         {archived && canArchive && <Button variant="secondary" size="sm" disabled={busy} onClick={() => void restoreForm()} leftIcon={<RotateCcw className="h-4 w-4" />}>Restore Form</Button>}
         {!archived && canArchive && <Button variant="danger" size="sm" onClick={() => { setPassword(''); setArchiveError(''); setArchiveOpen(true) }} leftIcon={<Archive className="h-4 w-4" />}>Archive Form</Button>}
       </div>
@@ -144,6 +153,16 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
       </div>}
       {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
     </div>
+
+    <ConfirmDialog
+      isOpen={closeConfirmOpen}
+      onClose={() => setCloseConfirmOpen(false)}
+      onConfirm={() => void updateResponseState(false)}
+      title="Close responses for this form?"
+      message="People will no longer be able to submit responses until the form is reopened."
+      confirmLabel="Close responses"
+      confirmVariant="danger"
+    />
 
     <Modal isOpen={archiveOpen} onClose={() => { if (!archiving) setArchiveOpen(false) }} title="Archive this form?" description="The public form link will stop accepting responses. Submitted attendee responses and analytics will be preserved." className="max-w-md">
       <form onSubmit={(event) => void archiveForm(event)} className="space-y-4">

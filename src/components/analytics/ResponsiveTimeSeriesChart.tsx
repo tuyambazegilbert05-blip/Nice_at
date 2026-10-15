@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { gsap } from '../../motion/gsap'
 import { MOTION_DURATION, MOTION_EASE } from '../../motion/gsap/config'
 import { useGSAP } from '../../motion/gsap/useGsap'
@@ -16,6 +16,9 @@ export function ResponsiveTimeSeriesChart({ data, label = 'Check-ins' }: {
   const lineRef = useRef<SVGPathElement>(null)
   const areaRef = useRef<SVGPathElement>(null)
   const pointsRef = useRef<SVGGElement>(null)
+  const chartId = useId().replaceAll(':', '')
+  const descriptionId = `analytics-series-summary-${chartId}`
+  const areaGradientId = `responsive-analytics-area-${chartId}`
   const [width, setWidth] = useState(720)
   const dataKey = data.map((point) => `${point.label}:${point.value}`).join('|')
 
@@ -90,14 +93,14 @@ export function ResponsiveTimeSeriesChart({ data, label = 'Check-ins' }: {
 
   return (
     <div ref={containerRef} className="w-full min-w-0" role="img" aria-label={`${label} time series chart`}>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-52 w-full overflow-visible sm:h-64" preserveAspectRatio="none" aria-describedby="analytics-series-summary">
-        <desc id="analytics-series-summary">{data.map((point) => `${point.label}: ${number(point.value)} ${label.toLowerCase()}`).join('; ')}</desc>
-        <defs><linearGradient id="responsive-analytics-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#1882d2" stopOpacity=".22" /><stop offset="100%" stopColor="#1882d2" stopOpacity="0" /></linearGradient></defs>
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-52 w-full overflow-visible sm:h-64" preserveAspectRatio="none" aria-describedby={descriptionId}>
+        <desc id={descriptionId}>{data.map((point) => `${point.label}: ${number(point.value)} ${label.toLowerCase()}`).join('; ')}</desc>
+        <defs><linearGradient id={areaGradientId} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#1882d2" stopOpacity=".22" /><stop offset="100%" stopColor="#1882d2" stopOpacity="0" /></linearGradient></defs>
         {tickValues.map((tick, index) => {
           const y = top + (plotHeight / 3) * index
           return <g key={`${tick}-${index}`}><line x1={left} x2={width - right} y1={y} y2={y} stroke="#e7edf3" strokeDasharray="4 5" /><text x={left - 9} y={y + 4} textAnchor="end" className="fill-slate-400" fontSize="12">{number(tick)}</text></g>
         })}
-        <path ref={areaRef} d={area} fill="url(#responsive-analytics-area)" />
+        <path ref={areaRef} d={area} fill={`url(#${areaGradientId})`} />
         <path ref={lineRef} d={line} fill="none" stroke="#1674c8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <g ref={pointsRef}>{points.map((point) => <circle key={point.label} cx={point.x} cy={point.y} r="3.5" fill="#fff" stroke="#1674c8" strokeWidth="2" vectorEffect="non-scaling-stroke" />)}</g>
         {labelIndexes.map((index) => <text key={`${data[index].label}-${index}`} x={points[index].x} y={height - 9} textAnchor={index === 0 ? 'start' : index === data.length - 1 ? 'end' : 'middle'} className="fill-slate-400" fontSize="12">{data[index].label}</text>)}

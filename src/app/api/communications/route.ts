@@ -14,18 +14,60 @@ export async function GET() {
   try {
     const user = await authorized()
     if (!user) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
-    const result = await query<{ email: string; name: string; category: 'Team' | 'Opted-in attendee' }>(
-      `SELECT email,name,category FROM (
-         SELECT lower(email) AS email,name,'Team'::text AS category FROM users WHERE is_active=true
-         UNION
-         SELECT email,name,category FROM (
-           SELECT DISTINCT ON (lower(email)) lower(email) AS email,full_name AS name,
-             'Opted-in attendee'::text AS category,email_updates_opt_in
-           FROM attendance_records ORDER BY lower(email),submitted_at DESC
-         ) latest_attendee WHERE email_updates_opt_in=true
-       ) contacts ORDER BY category,name`,
+    const result = await query<{ email: string; name: string; category: 'Team' | 'Opted-in participant' }>(
+      `WITH team_contacts AS (
+         SELECT lower(BTRIM(email)) AS email,
+           COALESCE(NULLIF(BTRIM(name), ''), lower(BTRIM(email))) AS name,
+           'Team'::text AS category,
+           0 AS source_priority,
+           NULL::timestamptz AS submitted_at
+         FROM users
+         WHERE is_active=true AND BTRIM(email) <> ''
+       ),
+       latest_session_contacts AS (
+         SELECT DISTINCT ON (lower(BTRIM(email)))
+           lower(BTRIM(email)) AS email,
+           COALESCE(NULLIF(BTRIM(full_name), ''), lower(BTRIM(email))) AS name,
+           email_updates_opt_in,
+           submitted_at
+         FROM attendance_records
+         WHERE BTRIM(email) <> ''
+         ORDER BY lower(BTRIM(email)),submitted_at DESC
+       ),
+       form_opt_in_contacts AS (
+         SELECT DISTINCT ON (lower(BTRIM(email)))
+           lower(BTRIM(email)) AS email,
+           COALESCE(NULLIF(BTRIM(full_name), ''), lower(BTRIM(email))) AS name,
+           submitted_at
+         FROM custom_form_submissions
+         WHERE BTRIM(email) <> ''
+           AND (
+             responses->>'communications_consent'='true'
+             OR responses->>'workshop_updates'='true'
+             OR responses->>'outreach_updates'='true'
+           )
+         ORDER BY lower(BTRIM(email)),submitted_at DESC
+       ),
+       eligible_contacts AS (
+         SELECT email,name,category,source_priority,submitted_at FROM team_contacts
+         UNION ALL
+         SELECT email,name,'Opted-in participant'::text AS category,1 AS source_priority,submitted_at
+         FROM latest_session_contacts
+         WHERE email_updates_opt_in=true
+         UNION ALL
+         SELECT email,name,'Opted-in participant'::text AS category,1 AS source_priority,submitted_at
+         FROM form_opt_in_contacts
+       ),
+       deduplicated_contacts AS (
+         SELECT DISTINCT ON (email) email,name,category
+         FROM eligible_contacts
+         ORDER BY email,source_priority,submitted_at DESC NULLS LAST
+       )
+       SELECT email,name,category
+       FROM deduplicated_contacts
+       ORDER BY CASE category WHEN 'Team' THEN 0 ELSE 1 END,name,email`,
     )
-    return NextResponse.json({ success: true, data: result.rows })
+    return NextResponse.json({ success: true, data: result.rows }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
     console.error('Could not load communication recipients:', error)
     return NextResponse.json({ success: false, error: 'Could not load email recipients.' }, { status: 500 })

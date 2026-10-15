@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { AttendanceFormFieldControl } from './AttendanceFormFieldControl'
 import { CustomFormBrand } from './CustomFormBrand'
-import { createAttendanceFormTemplate, createDefaultAttendanceForm, ATTENDANCE_FIELD_TYPES, attendanceFormConfigSchema, getAttendanceFormFieldGroups, getVisibleAttendanceFields, type AttendanceFieldType, type AttendanceFormConfig, type AttendanceFormField, type AttendanceFormTemplate, type AttendanceResponseValue } from '../../lib/forms/attendance-form'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { gsap } from '../../motion/gsap'
+import { createAttendanceFormTemplate, createDefaultAttendanceForm, ATTENDANCE_FIELD_TYPES, ATTENDANCE_FORM_TEMPLATES, attendanceFormConfigSchema, getAttendanceFormFieldGroups, getVisibleAttendanceFields, type AttendanceFieldType, type AttendanceFormConfig, type AttendanceFormField, type AttendanceFormTemplate, type AttendanceResponseValue } from '../../lib/forms/attendance-form'
 
 const fieldTypeNames: Record<AttendanceFieldType, string> = {
   SHORT_TEXT: 'Short text', LONG_TEXT: 'Long text', EMAIL: 'Email', PHONE: 'Phone', NUMBER: 'Number',
@@ -23,10 +25,23 @@ function optionsText(field: AttendanceFormField): string {
   return (field.options || []).join('\n')
 }
 
+interface BuilderConfirmation {
+  title: string
+  message: string
+  confirmLabel: string
+  confirmVariant?: 'primary' | 'danger'
+  onConfirm: () => void
+}
+
 export function AttendanceFormBuilder({ value, onChange }: { value: AttendanceFormConfig; onChange: (config: AttendanceFormConfig) => void }) {
   const [dragging, setDragging] = useState<string | null>(null)
   const [previewResponses, setPreviewResponses] = useState<Record<string, AttendanceResponseValue>>({})
   const [template, setTemplate] = useState<AttendanceFormTemplate>('Standard Attendance')
+  const [confirmation, setConfirmation] = useState<BuilderConfirmation | null>(null)
+  const previewScrollRef = useRef<HTMLDivElement>(null)
+  const previewContentRef = useRef<HTMLDivElement>(null)
+  const previewBorderRef = useRef<SVGSVGElement>(null)
+  const previewBorderPathRef = useRef<SVGRectElement>(null)
   const fields = [...value.fields].sort((left, right) => left.order - right.order)
   const sections = [...(value.sections ?? [])].sort((left, right) => left.order - right.order)
   const valid = attendanceFormConfigSchema.safeParse(value)
@@ -83,11 +98,19 @@ export function AttendanceFormBuilder({ value, onChange }: { value: AttendanceFo
   }
 
   const removeSection = (id: string) => {
-    if (sections.length <= 1 || !window.confirm('Remove this section? Its fields will move to the first remaining section.')) return
-    const nextSections = sections.filter((section) => section.id !== id)
-    const fallbackId = nextSections[0].id
-    const nextFields = fields.map((field) => field.sectionId === id ? { ...field, sectionId: fallbackId } : field)
-    onChange(cleanConfig({ ...value, sections: nextSections, fields: nextFields }))
+    if (sections.length <= 1) return
+    setConfirmation({
+      title: 'Remove this section?',
+      message: 'Its fields will move to the first remaining section.',
+      confirmLabel: 'Remove section',
+      confirmVariant: 'danger',
+      onConfirm: () => {
+        const nextSections = sections.filter((section) => section.id !== id)
+        const fallbackId = nextSections[0].id
+        const nextFields = fields.map((field) => field.sectionId === id ? { ...field, sectionId: fallbackId } : field)
+        onChange(cleanConfig({ ...value, sections: nextSections, fields: nextFields }))
+      },
+    })
   }
 
   const updatePreviewResponse = (id: string, response: AttendanceResponseValue) => {
@@ -99,27 +122,89 @@ export function AttendanceFormBuilder({ value, onChange }: { value: AttendanceFo
   }
 
   const restoreDefaults = () => {
-    if (window.confirm('Restore the standard attendance fields? This replaces the current form draft.')) onChange(createDefaultAttendanceForm())
+    setConfirmation({
+      title: 'Restore standard attendance fields?',
+      message: 'This will replace the current draft with the standard attendance fields.',
+      confirmLabel: 'Restore fields',
+      onConfirm: () => onChange(createDefaultAttendanceForm()),
+    })
   }
 
   const applyTemplate = () => {
-    if (window.confirm(`Replace the current draft with the “${template}” template?`)) onChange(createAttendanceFormTemplate(template))
+    setConfirmation({
+      title: `Apply “${template}” template?`,
+      message: 'The template will replace the fields and sections in the current draft.',
+      confirmLabel: 'Apply template',
+      onConfirm: () => onChange(createAttendanceFormTemplate(template)),
+    })
   }
 
   const removeField = (field: AttendanceFormField) => {
     if (field.id === 'full_name' || field.id === 'email') return
-    if (window.confirm(`Remove “${field.label}” from this form?`)) onChange(cleanConfig({ ...value, fields: fields.filter((item) => item.id !== field.id).map((item) => item.condition?.fieldId === field.id ? { ...item, condition: undefined, visible: false } : item) }))
+    setConfirmation({
+      title: `Remove “${field.label}” from this form?`,
+      message: 'This question will be removed from the form draft.',
+      confirmLabel: 'Remove question',
+      confirmVariant: 'danger',
+      onConfirm: () => onChange(cleanConfig({ ...value, fields: fields.filter((item) => item.id !== field.id).map((item) => item.condition?.fieldId === field.id ? { ...item, condition: undefined, visible: false } : item) })),
+    })
   }
 
   const conditionControllers = fields.filter((candidate) => candidate.id !== 'full_name' && candidate.visible && ['SELECT', 'RADIO', 'CHECKBOX'].includes(candidate.type) && !candidate.condition)
   const previewGroups = getAttendanceFormFieldGroups(value, previewResponses)
+
+  useEffect(() => {
+    const viewport = previewScrollRef.current
+    const content = previewContentRef.current
+    const border = previewBorderRef.current
+    const borderPath = previewBorderPathRef.current
+    if (!viewport || !content || !border || !borderPath) return
+
+    let updateProgress: (() => void) | undefined
+    let updateBorderSize: (() => void) | undefined
+    let resizeObserver: ResizeObserver | undefined
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const context = gsap.context(() => {
+      const progressState = { value: 0 }
+      const animateProgress = gsap.quickTo(progressState, 'value', {
+        duration: reducedMotion ? 0 : 0.12,
+        ease: 'power2.out',
+        onUpdate: () => borderPath.setAttribute('stroke-dasharray', `${progressState.value} 1`),
+      })
+      updateProgress = () => {
+        const scrollRange = viewport.scrollHeight - viewport.clientHeight
+        const progress = scrollRange > 0 ? viewport.scrollTop / scrollRange : 0
+        animateProgress(Math.min(1, Math.max(0, progress)))
+      }
+      updateBorderSize = () => {
+        const { width, height } = border.getBoundingClientRect()
+        const pathWidth = Math.max(0, width - 2)
+        const pathHeight = Math.max(0, height - 2)
+        border.setAttribute('viewBox', `0 0 ${width} ${height}`)
+        borderPath.setAttribute('width', String(pathWidth))
+        borderPath.setAttribute('height', String(pathHeight))
+        updateProgress?.()
+      }
+      viewport.addEventListener('scroll', updateProgress, { passive: true })
+      resizeObserver = new ResizeObserver(() => updateBorderSize?.())
+      resizeObserver.observe(viewport)
+      resizeObserver.observe(content)
+      updateBorderSize()
+    }, viewport)
+
+    return () => {
+      if (updateProgress) viewport.removeEventListener('scroll', updateProgress)
+      resizeObserver?.disconnect()
+      context.revert()
+    }
+  }, [])
 
   return <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,.95fr)]">
     <section className="space-y-4" aria-label="Form fields">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50/70 p-4">
         <div><h2 className="font-semibold text-slate-900">Form fields</h2><p className="mt-1 text-xs text-slate-600">Name and email stay visible and required. Use the arrows or drag a row to reorder.</p></div>
         <div className="flex flex-wrap gap-2">
-          <label className="sr-only" htmlFor="attendance-form-template">Choose a form template</label><select id="attendance-form-template" value={template} onChange={(event) => setTemplate(event.target.value as AttendanceFormTemplate)} className="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs text-slate-700">{(['Conference Registration', 'Standard Attendance', 'Workshop Feedback', 'School Outreach'] as const).map((item) => <option key={item}>{item}</option>)}</select>
+          <label className="sr-only" htmlFor="attendance-form-template">Choose a form template</label><select id="attendance-form-template" value={template} onChange={(event) => setTemplate(event.target.value as AttendanceFormTemplate)} className="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs text-slate-700">{ATTENDANCE_FORM_TEMPLATES.map((item) => <option key={item}>{item}</option>)}</select>
           <button type="button" onClick={applyTemplate} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Apply template</button>
           <button type="button" onClick={restoreDefaults} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /> Restore standard</button>
           <button type="button" onClick={addField} disabled={fields.length >= 40} className="inline-flex items-center gap-1.5 rounded-lg bg-sky-700 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-800 disabled:opacity-50"><Plus className="h-3.5 w-3.5" /> Add field</button>
@@ -193,17 +278,60 @@ export function AttendanceFormBuilder({ value, onChange }: { value: AttendanceFo
     </section>
 
     <aside className="xl:sticky xl:top-4 xl:self-start" aria-label="Live form preview">
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-        <div className="mb-4"><p className="text-[10px] font-bold uppercase tracking-[.16em] text-sky-700">Live preview</p><h2 className="mt-1 text-lg font-bold text-slate-900">Attendee form</h2><p className="mt-1 text-xs text-slate-500">Changes appear here as you edit.</p></div>
-        <div className="space-y-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="border-b border-slate-100 pb-4"><CustomFormBrand logoClassName="h-12 w-12" /><p className="mt-4 text-sm font-semibold text-slate-900">Attendance registration</p></div>
-          {previewGroups.map((group) => <section key={group.id} className="space-y-3">
-            {group.label && <div className="border-b border-slate-100 pb-2"><h3 className="text-sm font-semibold text-slate-900">{group.label}</h3>{group.description && <p className="mt-1 text-xs text-slate-500">{group.description}</p>}</div>}
-            {group.fields.map((field) => <div key={field.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0"><AttendanceFormFieldControl field={field} value={previewResponses[field.id]} onChange={(response) => updatePreviewResponse(field.id, response)} /></div>)}
-          </section>)}
-          <button type="button" disabled className="w-full rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white opacity-70">Submit attendance</button>
+      <div className="relative max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+        <div
+          ref={previewScrollRef}
+          role="region"
+          aria-label="Live form preview. Scroll to review the complete attendee form."
+          tabIndex={0}
+          className="nice-hidden-scrollbar max-h-[calc(100dvh-2.125rem)] min-h-0 overflow-y-auto overscroll-contain p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-inset sm:p-5"
+        >
+          <div ref={previewContentRef} className="space-y-4 pt-3">
+            <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-sky-700">Live preview</p><h2 className="mt-1 text-lg font-bold text-slate-900">Attendee form</h2><p className="mt-1 text-xs text-slate-500">Changes appear here as you edit.</p></div>
+            <div className="space-y-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="border-b border-slate-100 pb-4"><CustomFormBrand logoClassName="h-12 w-12" /><p className="mt-4 text-sm font-semibold text-slate-900">Attendance registration</p></div>
+              {previewGroups.map((group) => <section key={group.id} className="space-y-3">
+                {group.label && <div className="border-b border-slate-100 pb-2"><h3 className="text-sm font-semibold text-slate-900">{group.label}</h3>{group.description && <p className="mt-1 text-xs text-slate-500">{group.description}</p>}</div>}
+                {group.fields.map((field) => <div key={field.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0"><AttendanceFormFieldControl field={field} value={previewResponses[field.id]} onChange={(response) => updatePreviewResponse(field.id, response)} /></div>)}
+              </section>)}
+              <button type="button" disabled className="w-full rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white opacity-70">Submit attendance</button>
+            </div>
+          </div>
         </div>
+        <svg ref={previewBorderRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible">
+          <defs>
+            <linearGradient id="nice-preview-border-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#0284c7" />
+              <stop offset="52%" stopColor="#06b6d4" />
+              <stop offset="100%" stopColor="#10b981" />
+            </linearGradient>
+          </defs>
+          <rect
+            ref={previewBorderPathRef}
+            x="1"
+            y="1"
+            width="0"
+            height="0"
+            rx="15"
+            ry="15"
+            pathLength="1"
+            stroke="url(#nice-preview-border-gradient)"
+            strokeWidth="2"
+            strokeDasharray="0 1"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </svg>
       </div>
     </aside>
+    <ConfirmDialog
+      isOpen={Boolean(confirmation)}
+      onClose={() => setConfirmation(null)}
+      onConfirm={() => confirmation?.onConfirm()}
+      title={confirmation?.title ?? ''}
+      message={confirmation?.message ?? ''}
+      confirmLabel={confirmation?.confirmLabel ?? 'Confirm'}
+      confirmVariant={confirmation?.confirmVariant}
+    />
   </div>
 }

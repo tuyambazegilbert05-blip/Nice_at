@@ -21,8 +21,9 @@ function escapeHtml(value: string): string {
 }
 
 export function renderBrandedEmail(email: Pick<BrandedEmail, 'heading' | 'paragraphs' | 'action' | 'brand'>): string {
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
-  const logoPath = email.brand === 'custom-form' ? '/brand/NiCE-Logo-Animated-transparent.webp' : '/brand/NiCE-Logo-Animated.gif'
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+  // Email clients commonly block animated WebP/GIF assets; use the stable PNG brand mark.
+  const logoPath = '/brand/logo.png'
   const paragraphs = email.paragraphs.map((text) => `<p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.7;white-space:pre-line">${escapeHtml(text)}</p>`).join('')
   const action = email.action
     ? `<p style="margin:28px 0"><a href="${escapeHtml(email.action.url)}" style="background:#0369a1;color:#fff;text-decoration:none;padding:13px 20px;border-radius:8px;font-weight:700;display:inline-block">${escapeHtml(email.action.label)}</a></p>`

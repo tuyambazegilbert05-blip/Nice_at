@@ -208,6 +208,16 @@ body {
   background: radial-gradient(circle at 50% 0%, rgba(2, 132, 199, 0.08) 0%, transparent 70%);
 }
 
+/* Keep custom preview panes scrollable without a native scrollbar. */
+.nice-hidden-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nice-hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Accessibility: respect user prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   *,

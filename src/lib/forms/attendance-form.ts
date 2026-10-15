@@ -41,7 +41,8 @@ export interface AttendanceFormConfig {
   sections?: AttendanceFormSection[]
 }
 
-export type AttendanceFormTemplate = 'Standard Attendance' | 'Workshop Feedback' | 'School Outreach' | 'Conference Registration'
+export const ATTENDANCE_FORM_TEMPLATES = ['Standard Attendance', 'Workshop Feedback', 'School Outreach', 'Conference Registration'] as const
+export type AttendanceFormTemplate = typeof ATTENDANCE_FORM_TEMPLATES[number]
 
 const validationSchema = z.object({
   minLength: z.number().int().min(0).max(6000).optional(),
@@ -156,21 +157,17 @@ export function createDefaultAttendanceForm(): AttendanceFormConfig {
 }
 
 export function createAttendanceFormTemplate(template: AttendanceFormTemplate): AttendanceFormConfig {
-  if (template === 'Conference Registration') return createConferenceRegistrationForm()
-  const config = createDefaultAttendanceForm()
-  config.fields = config.fields.map((field) => ({ ...field, options: field.options ? [...field.options] : undefined, validation: field.validation ? { ...field.validation } : undefined }))
-  const byId = new Map(config.fields.map((field) => [field.id, field]))
-  if (template === 'Workshop Feedback') {
-    byId.get('key_takeaway')!.required = true
-    byId.get('feedback')!.description = 'Share suggestions that could improve a future workshop.'
-  } else if (template === 'School Outreach') {
-    byId.get('faculty')!.label = 'School'
-    byId.get('program')!.label = 'Class / Program'
-    byId.get('year_of_study')!.label = 'School Level / Year'
-    byId.get('year_of_study')!.options = ['Primary', 'Lower Secondary', 'Upper Secondary', 'University', 'Other']
-    byId.get('participant_type')!.options = ['Secondary School Student', 'Teacher', 'School Leader', 'Guest', 'Other']
+  switch (template) {
+    case 'Standard Attendance':
+      return createDefaultAttendanceForm()
+    case 'Workshop Feedback':
+      return createWorkshopFeedbackForm()
+    case 'School Outreach':
+      return createSchoolOutreachForm()
+    case 'Conference Registration':
+      return createConferenceRegistrationForm()
   }
-  return config
+  return createDefaultAttendanceForm()
 }
 
 function createConferenceRegistrationForm(): AttendanceFormConfig {
@@ -206,6 +203,61 @@ function createConferenceRegistrationForm(): AttendanceFormConfig {
     { id: 'referral_source', type: 'SELECT', label: 'How did you hear about this event?', order: 20, required: false, visible: true, options: ['NiCE Club Rwanda', 'School or university', 'Colleague or friend', 'Social media', 'Email invitation', 'Other'], sectionId: 'additional_questions' },
     { id: 'registration_consent', type: 'CONSENT', label: 'I agree that NiCE Club Rwanda may use these details to manage my registration and event participation.', description: 'This is required to process your registration.', order: 21, required: true, visible: true, sectionId: 'consent_confirmation' },
     { id: 'communications_consent', type: 'CONSENT', label: 'I would like to receive future NiCE event announcements.', description: 'Optional. This choice is separate from registration processing.', order: 22, required: false, visible: true, sectionId: 'consent_confirmation' },
+  ]
+  return { version: 1, sections, fields }
+}
+
+function createWorkshopFeedbackForm(): AttendanceFormConfig {
+  const sections: AttendanceFormSection[] = [
+    { id: 'workshop_participant', label: 'Participant Details', description: 'Tell us who took part in the workshop.', order: 0 },
+    { id: 'workshop_experience', label: 'Workshop Experience', description: 'Rate the session and how well it supported your learning.', order: 1 },
+    { id: 'workshop_reflection', label: 'Learning and Feedback', description: 'Share what you learned and what could make future workshops better.', order: 2 },
+    { id: 'workshop_follow_up', label: 'Future Engagement', description: 'Choose whether you would like to hear about related NiCE activities.', order: 3 },
+  ]
+  const fields: AttendanceFormField[] = [
+    { id: 'full_name', type: 'SHORT_TEXT', label: 'Full Name', description: 'Your name as you would like it recorded.', order: 0, required: true, visible: true, placeholder: 'e.g. Marie Claire Uwase', validation: { maxLength: 180 }, sectionId: 'workshop_participant' },
+    { id: 'email', type: 'EMAIL', label: 'Email Address', description: 'We will use this address for your workshop follow-up.', order: 1, required: true, visible: true, placeholder: 'you@example.rw', validation: { maxLength: 254 }, sectionId: 'workshop_participant' },
+    { id: 'phone', type: 'PHONE', label: 'Phone Number', order: 2, required: false, visible: true, placeholder: '+250 788 000 000', validation: { maxLength: 40 }, sectionId: 'workshop_participant' },
+    { id: 'organization', type: 'SHORT_TEXT', label: 'School, Organization, or Institution', order: 3, required: false, visible: true, placeholder: 'Where you study or work', validation: { maxLength: 180 }, sectionId: 'workshop_participant' },
+    { id: 'workshop_role', type: 'SELECT', label: 'Your Role', order: 4, required: false, visible: true, options: ['Student', 'Educator', 'Researcher', 'Professional', 'Community member', 'Other'], sectionId: 'workshop_participant' },
+    { id: 'overall_rating', type: 'RADIO', label: 'Overall Workshop Rating', description: 'Choose a rating from 1 (poor) to 5 (excellent).', order: 5, required: true, visible: true, options: ['1 — Poor', '2 — Fair', '3 — Good', '4 — Very good', '5 — Excellent'], sectionId: 'workshop_experience' },
+    { id: 'objectives_met', type: 'SELECT', label: 'How well did the workshop meet its objectives?', order: 6, required: false, visible: true, options: ['Fully', 'Mostly', 'Partly', 'Not yet'], sectionId: 'workshop_experience' },
+    { id: 'facilitator_clarity', type: 'RADIO', label: 'How clear were the explanations?', order: 7, required: false, visible: true, options: ['Very clear', 'Clear', 'Somewhat clear', 'Unclear'], sectionId: 'workshop_experience' },
+    { id: 'workshop_pace', type: 'SELECT', label: 'How was the workshop pace?', order: 8, required: false, visible: true, options: ['Too slow', 'About right', 'Too fast'], sectionId: 'workshop_experience' },
+    { id: 'key_takeaway', type: 'LONG_TEXT', label: 'What is the most useful thing you learned?', order: 9, required: true, visible: true, placeholder: 'Share a key idea, skill, or question you are taking away.', validation: { maxLength: 3000 }, sectionId: 'workshop_reflection' },
+    { id: 'confidence_after', type: 'RADIO', label: 'How confident do you feel about this topic now?', description: 'Choose a rating from 1 (not confident yet) to 5 (very confident).', order: 10, required: false, visible: true, options: ['1 — Not confident', '2 — Slightly confident', '3 — Somewhat confident', '4 — Confident', '5 — Very confident'], sectionId: 'workshop_reflection' },
+    { id: 'future_topics', type: 'CHECKBOX', label: 'Which topics would you like to explore in a future workshop?', order: 11, required: false, visible: true, options: ['Clean energy', 'Nuclear science', 'Climate and sustainability', 'Radiation and safety', 'STEM careers', 'Public dialogue'], sectionId: 'workshop_reflection' },
+    { id: 'additional_feedback', type: 'LONG_TEXT', label: 'What should we improve for next time?', order: 12, required: false, visible: true, placeholder: 'Share any suggestions about the content, activities, or format.', validation: { maxLength: 3000 }, sectionId: 'workshop_reflection' },
+    { id: 'recommend_workshop', type: 'SELECT', label: 'Would you recommend this workshop to a colleague or classmate?', order: 13, required: false, visible: true, options: ['Definitely', 'Probably', 'Not sure', 'Probably not'], sectionId: 'workshop_follow_up' },
+    { id: 'communications_consent', type: 'CONSENT', label: 'I would like to receive updates about related workshops and learning activities.', order: 14, required: false, visible: true, sectionId: 'workshop_follow_up' },
+  ]
+  return { version: 1, sections, fields }
+}
+
+function createSchoolOutreachForm(): AttendanceFormConfig {
+  const sections: AttendanceFormSection[] = [
+    { id: 'outreach_participant', label: 'Participant and School', description: 'Help us understand which school or community joined the outreach activity.', order: 0 },
+    { id: 'outreach_learning', label: 'Learning and Interests', description: 'Tell us what was useful and what you would like to explore next.', order: 1 },
+    { id: 'outreach_follow_up', label: 'Questions and Follow-up', description: 'Share questions or request another learning activity.', order: 2 },
+  ]
+  const fields: AttendanceFormField[] = [
+    { id: 'full_name', type: 'SHORT_TEXT', label: 'Full Name', description: 'Your name as you would like it recorded.', order: 0, required: true, visible: true, placeholder: 'e.g. Marie Claire Uwase', validation: { maxLength: 180 }, sectionId: 'outreach_participant' },
+    { id: 'email', type: 'EMAIL', label: 'Email Address', description: 'We will use this address for outreach follow-up.', order: 1, required: true, visible: true, placeholder: 'you@example.rw', validation: { maxLength: 254 }, sectionId: 'outreach_participant' },
+    { id: 'phone', type: 'PHONE', label: 'Phone Number', order: 2, required: false, visible: true, placeholder: '+250 788 000 000', validation: { maxLength: 40 }, sectionId: 'outreach_participant' },
+    { id: 'school_name', type: 'SHORT_TEXT', label: 'School or Community Organization', order: 3, required: true, visible: true, placeholder: 'Name of your school or organization', validation: { maxLength: 180 }, sectionId: 'outreach_participant' },
+    { id: 'district', type: 'SHORT_TEXT', label: 'District', order: 4, required: false, visible: true, placeholder: 'District', validation: { maxLength: 100 }, sectionId: 'outreach_participant' },
+    { id: 'outreach_role', type: 'SELECT', label: 'Your Role', order: 5, required: true, visible: true, options: ['Student or learner', 'Teacher or educator', 'School leader', 'Parent or guardian', 'Community member', 'Other'], sectionId: 'outreach_participant' },
+    { id: 'school_level', type: 'SELECT', label: 'School or Group Level', order: 6, required: false, visible: true, options: ['Primary', 'Lower secondary', 'Upper secondary', 'TVET', 'University or college', 'Community group', 'Other'], sectionId: 'outreach_participant' },
+    { id: 'class_or_year', type: 'SHORT_TEXT', label: 'Class or Year', order: 7, required: false, visible: true, placeholder: 'e.g. Senior 2 or Year 1', validation: { maxLength: 100 }, sectionId: 'outreach_participant', condition: { fieldId: 'outreach_role', operator: 'equals', value: 'Student or learner' } },
+    { id: 'teaching_subject', type: 'SHORT_TEXT', label: 'Subject or Area You Teach', order: 8, required: false, visible: true, placeholder: 'e.g. Physics or General Science', validation: { maxLength: 160 }, sectionId: 'outreach_participant', condition: { fieldId: 'outreach_role', operator: 'equals', value: 'Teacher or educator' } },
+    { id: 'topics_of_interest', type: 'CHECKBOX', label: 'Which topics interested you most?', order: 9, required: false, visible: true, options: ['Clean energy', 'Electricity and energy access', 'Nuclear science', 'Radiation and safety', 'Climate and sustainability', 'STEM studies and careers'], sectionId: 'outreach_learning' },
+    { id: 'prior_topic_knowledge', type: 'RADIO', label: 'Before this activity, how familiar were you with the topic?', order: 10, required: false, visible: true, options: ['This was new to me', 'I knew a little', 'I knew some of it', 'I was already familiar'], sectionId: 'outreach_learning' },
+    { id: 'learning_takeaway', type: 'LONG_TEXT', label: 'What is one thing you learned or will remember?', order: 11, required: true, visible: true, placeholder: 'Share an idea, fact, or question from the activity.', validation: { maxLength: 3000 }, sectionId: 'outreach_learning' },
+    { id: 'topic_confidence', type: 'RADIO', label: 'How confident do you feel discussing this topic now?', description: 'Choose a rating from 1 (not confident yet) to 5 (very confident).', order: 12, required: false, visible: true, options: ['1 — Not confident', '2 — Slightly confident', '3 — Somewhat confident', '4 — Confident', '5 — Very confident'], sectionId: 'outreach_learning' },
+    { id: 'outreach_questions', type: 'LONG_TEXT', label: 'What questions would you like NiCE to answer?', order: 13, required: false, visible: true, placeholder: 'Optional questions for a future discussion.', validation: { maxLength: 3000 }, sectionId: 'outreach_follow_up' },
+    { id: 'follow_up_interest', type: 'RADIO', label: 'Would your school or group be interested in another learning activity?', order: 14, required: false, visible: true, options: ['Yes', 'No'], sectionId: 'outreach_follow_up' },
+    { id: 'follow_up_details', type: 'LONG_TEXT', label: 'What kind of follow-up would be helpful?', order: 15, required: false, visible: true, placeholder: 'For example, a school visit, a science activity, or a discussion.', validation: { maxLength: 1500 }, sectionId: 'outreach_follow_up', condition: { fieldId: 'follow_up_interest', operator: 'equals', value: 'Yes' } },
+    { id: 'communications_consent', type: 'CONSENT', label: 'I would like to receive information about future NiCE school and community activities.', order: 16, required: false, visible: true, sectionId: 'outreach_follow_up' },
   ]
   return { version: 1, sections, fields }
 }
