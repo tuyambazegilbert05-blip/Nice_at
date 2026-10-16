@@ -18,7 +18,7 @@ export function ScientificFormBackground({ children, className = '' }: {
   className?: string
 }) {
   return <main className={`relative isolate min-h-screen overflow-hidden bg-slate-50 bg-scientific-grid ${className}`}>
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden p-3 sm:p-5 lg:p-8">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden p-3 sm:p-5 lg:p-8">
       {atomPositions.map((position, index) => <div
         key={index}
         className={`absolute rounded-full bg-cover bg-center ${position}`}
