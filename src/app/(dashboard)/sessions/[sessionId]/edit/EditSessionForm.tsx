@@ -70,7 +70,7 @@ export default function EditSessionForm({ session }: { session: Session }) {
 
   return <div className="mx-auto max-w-3xl space-y-5">
     <div className="flex items-center gap-3">
-      <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/sessions/${encodeURIComponent(session.id)}`)} leftIcon={<ArrowLeft className="h-4 w-4" />}>Back</Button>
+      <Button type="button" variant="outline" size="sm" data-navigation-action="true" onClick={() => router.push(`/sessions/${encodeURIComponent(session.id)}`)} leftIcon={<ArrowLeft className="h-4 w-4" />}>Back</Button>
       <div><h1 className="text-2xl font-bold text-slate-900">Edit Session</h1><p className="mt-1 text-sm text-slate-600">Update the session details, schedule, and attendance window.</p></div>
     </div>
 
@@ -94,7 +94,7 @@ export default function EditSessionForm({ session }: { session: Session }) {
           <label className="block text-sm font-medium text-slate-700">Duplicate check-in policy<select value={duplicatePolicy} onChange={(event) => setDuplicatePolicy(event.target.value as DuplicatePolicy)} className={fieldClass}>{DUPLICATE_POLICIES.map((option) => <option key={option} value={option}>{option.replaceAll('_', ' ')}</option>)}</select></label>
           {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-            <Button type="button" variant="outline" onClick={() => router.push(`/sessions/${encodeURIComponent(session.id)}`)}>Cancel</Button>
+            <Button type="button" variant="outline" data-navigation-action="true" onClick={() => router.push(`/sessions/${encodeURIComponent(session.id)}`)}>Cancel</Button>
             <Button type="submit" isLoading={saving} leftIcon={<Save className="h-4 w-4" />}>{saving ? 'Saving…' : 'Save session changes'}</Button>
           </div>
         </form>

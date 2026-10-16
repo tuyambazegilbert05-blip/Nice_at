@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { query } from '../../../lib/database/client'
+import { recordActivity } from '../../../lib/activity/activity-service'
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
        WHERE id=$1 AND is_active=true AND has_completed_onboarding=false`,
       [user.id, body.outcome],
     )
+    await recordActivity({ actor: user, action: 'account.onboarding_completed', targetType: 'staff_account', targetId: user.id, targetLabel: user.name, summary: body.outcome === 'skipped' ? 'Skipped the platform introduction' : 'Completed the platform introduction', details: { outcome: body.outcome } })
     return NextResponse.json({ success: true, hasCompletedOnboarding: true, onboardingOutcome: body.outcome }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
     console.error('Failed to save onboarding completion:', error)

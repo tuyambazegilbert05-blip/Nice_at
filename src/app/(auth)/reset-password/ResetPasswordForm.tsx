@@ -56,7 +56,7 @@ export default function ResetPasswordForm() {
       <CardContent>
         <FormFieldsMotion>
           {done ? <div className="text-center">
-            <Button type="button" variant="primary" className="w-full" onClick={() => router.push('/login')}>Continue to Sign In</Button>
+            <Button type="button" variant="primary" className="w-full" data-navigation-action="true" onClick={() => router.push('/login')}>Continue to Sign In</Button>
           </div> : <form onSubmit={submit} className="flex flex-col gap-4">
             {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>}
             <PasswordField label="New password" value={password} onChange={setPassword} placeholder="Create a strong password" showRequirements />

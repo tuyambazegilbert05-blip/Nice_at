@@ -3,6 +3,12 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
+  "crons": [
+    {
+      "path": "/api/maintenance/activity-retention",
+      "schedule": "0 3 * * *"
+    }
+  ],
   "regions": [
     "fra1"
   ]

@@ -119,11 +119,14 @@ export default function SessionDetailPage({ params }: { params: Promise<{ sessio
   const canOverrideAttendance = permissions.includes('session:override')
   const overrideActive = !!session.attendanceOverrideUntil && new Date(session.attendanceOverrideUntil).getTime() > clockNow
 
-  const handleCopyLink = () => {
-    if (typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(attendanceUrl)
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(attendanceUrl)
       setCopied(true)
+      setStatusError('')
       setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setStatusError('Could not copy the attendance link. Open the QR page to copy it manually.')
     }
   }
 

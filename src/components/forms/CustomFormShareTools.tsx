@@ -143,9 +143,6 @@ export function CustomFormShareTools({ form, canExport, canClose }: { form: Cust
   const [guestCards, setGuestCards] = useState<Array<{ id: number; name: string; description: string; imageUrl: string }>>([{ id: 1, name: '', description: '', imageUrl: '' }])
   const [artworkCopy, setArtworkCopy] = useState({ join: 'Join us', scan: 'Scan the code to view details and register.', footer: 'Scan the QR code to register', socialCta: 'Save your place' })
 
-  useEffect(() => {
-    setGuestCards((cards) => cards.length > 6 ? cards.slice(0, 6) : cards)
-  }, [guestCards.length])
   const [eventImageDataUrl, setEventImageDataUrl] = useState('')
   const [eventImageTwoDataUrl, setEventImageTwoDataUrl] = useState('')
   const [guestImageDataUrls, setGuestImageDataUrls] = useState<Record<number, string>>({})
@@ -163,10 +160,12 @@ export function CustomFormShareTools({ form, canExport, canClose }: { form: Cust
   const filename = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'nice-event'
 
   useEffect(() => {
+    let frame = 0
     try {
       const savedUrl = window.localStorage.getItem(eventImageStorageKey)
-      if (savedUrl) setEventImageUrl(savedUrl)
+      if (savedUrl) frame = window.requestAnimationFrame(() => setEventImageUrl(savedUrl))
     } catch { /* Browser storage may be unavailable. */ }
+    return () => { if (frame) window.cancelAnimationFrame(frame) }
   }, [eventImageStorageKey])
 
   useEffect(() => {
@@ -179,7 +178,7 @@ export function CustomFormShareTools({ form, canExport, canClose }: { form: Cust
 
   useEffect(() => {
     const url = eventImageUrlTwo.trim()
-    if (!url) { setEventImageTwoDataUrl(''); return }
+    if (!url) return
     fetch(url).then((response) => response.ok ? response.blob() : Promise.reject(new Error('second event image unavailable'))).then(toDataUrl).then(setEventImageTwoDataUrl).catch(() => setEventImageTwoDataUrl(''))
   }, [eventImageUrlTwo])
 
@@ -229,7 +228,7 @@ export function CustomFormShareTools({ form, canExport, canClose }: { form: Cust
       setCloseConfirmOpen(true)
       return
     }
-    void updateFormState(true)
+    return updateFormState(true)
   }
 
   const eventArtworks = [eventImageDataUrl || eventImageUrl.trim(), eventImageTwoDataUrl || eventImageUrlTwo.trim()].filter(Boolean)
@@ -290,7 +289,7 @@ export function CustomFormShareTools({ form, canExport, canClose }: { form: Cust
       <section className="order-2 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]" aria-label="Public link and QR code">
         <Card><CardContent className="space-y-4 p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold text-slate-900">Public form link</h2><p className="mt-1 text-xs text-slate-500">The link remains stable when a new form version is published.</p></div><span className="text-xs font-semibold text-emerald-700">Published v{form.publishedVersion}</span></div>
-          <div className="flex flex-col gap-2 sm:flex-row"><input aria-label="Public form link" readOnly value={publicUrl} className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-700" /><Button variant="outline" onClick={() => void copyLink()} leftIcon={copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}>{copied ? 'Copied' : 'Copy link'}</Button><a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><ExternalLink className="h-4 w-4" />Open</a></div>
+          <div className="flex flex-col gap-2 sm:flex-row"><input aria-label="Public form link" readOnly value={publicUrl} className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-700" /><Button variant="outline" onClick={() => copyLink()} leftIcon={copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}>{copied ? 'Copied' : 'Copy link'}</Button><a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><ExternalLink className="h-4 w-4" />Open</a></div>
           <div className="flex flex-wrap gap-2">{canClose && status !== 'DRAFT' && <Button variant="outline" size="sm" onClick={toggleForm}>{responseState === 'ACCEPTING' ? 'Close responses' : 'Open responses'}</Button>}{canExport && <a href={`/api/forms/${encodeURIComponent(form.id)}/export`} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Export responses</a>}</div>
         </CardContent></Card>
         <Card id="shareable-qr"><CardContent className="flex min-h-[290px] flex-col items-center p-5 text-center"><QrCode className="h-5 w-5 text-sky-700" /><h2 className="mt-2 font-semibold text-slate-900">Registration QR code</h2><p className="mt-1 text-xs text-slate-500">Scan with a phone to open the published form.</p>{qrError ? <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-xs text-rose-800">{qrError}</p> : <Image src={qrEndpoint} width={220} height={220} unoptimized alt={`QR code for ${form.title}`} className="mt-3 aspect-square w-52 rounded-lg border border-slate-200 bg-white p-2" />}</CardContent></Card>
@@ -309,10 +308,10 @@ export function CustomFormShareTools({ form, canExport, canClose }: { form: Cust
       <section aria-label="Flyer preview and event artwork" className="order-1 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <Card className="lg:order-2"><CardContent className="space-y-4 p-5 sm:p-6">
           <div><h2 className="font-semibold text-slate-900">Live flyer preview</h2><p className="mt-1 text-xs leading-relaxed text-slate-500">The layout arranges your form title, event details, QR code, NiCE branding, and optional artwork automatically.</p></div>
-          <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-medium text-slate-700">Event image URL <span className="font-normal text-slate-500">(optional)</span><input type="url" value={eventImageUrl} onChange={(event) => { setEventImageUrl(event.target.value); setEventImageDataUrl('') }} onBlur={() => void loadEventImage()} placeholder="https://example.org/event.jpg" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></label><label className="block text-sm font-medium text-slate-700">Second image URL <span className="font-normal text-slate-500">(optional)</span><input type="url" value={eventImageUrlTwo} onChange={(event) => setEventImageUrlTwo(event.target.value)} placeholder="Guest or partner image" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></label></div>
+          <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-medium text-slate-700">Event image URL <span className="font-normal text-slate-500">(optional)</span><input type="url" value={eventImageUrl} onChange={(event) => { setEventImageUrl(event.target.value); setEventImageDataUrl('') }} onBlur={() => void loadEventImage()} placeholder="https://example.org/event.jpg" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></label><label className="block text-sm font-medium text-slate-700">Second image URL <span className="font-normal text-slate-500">(optional)</span><input type="url" value={eventImageUrlTwo} onChange={(event) => { setEventImageUrlTwo(event.target.value); if (!event.target.value.trim()) setEventImageTwoDataUrl('') }} placeholder="Guest or partner image" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></label></div>
           <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-medium text-slate-700">Flyer heading<input value={artworkCopy.join} onChange={(event) => setArtworkCopy((copy) => ({ ...copy, join: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label><label className="block text-sm font-medium text-slate-700">QR instruction<input value={artworkCopy.scan} onChange={(event) => setArtworkCopy((copy) => ({ ...copy, scan: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label><label className="block text-sm font-medium text-slate-700">Footer text<input value={artworkCopy.footer} onChange={(event) => setArtworkCopy((copy) => ({ ...copy, footer: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label><label className="block text-sm font-medium text-slate-700">Social call to action<input value={artworkCopy.socialCta} onChange={(event) => setArtworkCopy((copy) => ({ ...copy, socialCta: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label></div>
           <div className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium text-slate-700">Guests or featured contributors <span className="font-normal text-slate-500">(optional)</span></p><Button type="button" variant="outline" size="sm" disabled={guestCards.length >= 6} onClick={() => setGuestCards((cards) => cards.length >= 6 ? cards : [...cards, { id: Date.now(), name: '', description: '', imageUrl: '' }])}>Add guest</Button></div>{guestCards.map((card, index) => <div key={card.id} className="grid min-w-0 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2"><input aria-label={`Guest ${index + 1} name`} value={card.name} onChange={(event) => setGuestCards((cards) => cards.map((item) => item.id === card.id ? { ...item, name: event.target.value } : item))} placeholder="Guest name" className="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /><input aria-label={`Guest ${index + 1} description`} maxLength={100} value={card.description} onChange={(event) => setGuestCards((cards) => cards.map((item) => item.id === card.id ? { ...item, description: event.target.value.slice(0, 100) } : item))} placeholder="Role or short description" className="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /><input aria-label={`Guest ${index + 1} image URL`} type="url" value={card.imageUrl} onChange={(event) => setGuestCards((cards) => cards.map((item) => item.id === card.id ? { ...item, imageUrl: event.target.value } : item))} placeholder="Guest image URL" className="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:col-span-2" />{guestCards.length > 1 && <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={() => setGuestCards((cards) => cards.filter((item) => item.id !== card.id))}>Remove guest</Button>}</div>)}</div>
-          <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" onClick={() => void loadEventImage()} disabled={!eventImageUrl.trim()}>Apply image</Button>{eventImageUrl && <Button type="button" variant="ghost" size="sm" onClick={() => { setEventImageUrl(''); setEventImageDataUrl(''); try { window.localStorage.removeItem(eventImageStorageKey) } catch { /* Ignore unavailable storage. */ } }}>Remove image</Button>}</div>
+          <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" onClick={() => loadEventImage()} disabled={!eventImageUrl.trim()}>Apply image</Button>{eventImageUrl && <Button type="button" variant="ghost" size="sm" onClick={() => { setEventImageUrl(''); setEventImageDataUrl(''); try { window.localStorage.removeItem(eventImageStorageKey) } catch { /* Ignore unavailable storage. */ } }}>Remove image</Button>}</div>
           <p className="text-xs text-slate-500">Use a public direct image URL. The image appears in the flyer and social graphic when the host permits cross-origin loading.</p>
         </CardContent></Card>
         <div className="lg:order-1"><Card className="overflow-hidden"><CardContent className="p-3 sm:p-4"><div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Print flyer · live</p><FileImage className="h-4 w-4 text-sky-700" /></div>{flyerPreviewUrl ? <img src={flyerPreviewUrl} alt={`Live flyer preview for ${form.title}`} className="h-auto max-h-[700px] w-full rounded-lg border border-slate-200 bg-slate-50 object-contain" /> : <div className="flex min-h-72 items-center justify-center rounded-lg bg-slate-50 text-center text-xs text-slate-500">Preparing flyer preview…</div>}<div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3"><Button size="sm" disabled={!flyerSvg || Boolean(downloading)} isLoading={downloading === 'flyer'} onClick={() => void downloadGraphic('flyer')} leftIcon={<Download className="h-4 w-4" />}>Flyer</Button><Button size="sm" variant="outline" disabled={!socialSvg || Boolean(downloading)} isLoading={downloading === 'social'} onClick={() => void downloadGraphic('social')} leftIcon={<Share2 className="h-4 w-4" />}>Social</Button><a href={`${qrEndpoint}?download=1`} download className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><QrCode className="h-4 w-4" />QR</a></div></CardContent></Card></div>
@@ -321,7 +320,7 @@ export function CustomFormShareTools({ form, canExport, canClose }: { form: Cust
     <ConfirmDialog
       isOpen={closeConfirmOpen}
       onClose={() => setCloseConfirmOpen(false)}
-      onConfirm={() => void updateFormState(false)}
+      onConfirm={() => updateFormState(false)}
       title="Close this public form?"
       message="Attendees will no longer be able to submit responses until you reopen the form."
       confirmLabel="Close form"

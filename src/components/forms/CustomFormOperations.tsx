@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Archive, BarChart3, Check, Copy, ExternalLink, Pencil, QrCode, RotateCcw, Share2, Trash2, Users } from 'lucide-react'
+import { Archive, BarChart3, Check, Copy, ExternalLink, LoaderCircle, Pencil, QrCode, RotateCcw, Share2, Trash2, Users, X } from 'lucide-react'
 import type { CustomForm } from '../../lib/forms/form-service'
 import { getResponseWindowState } from '../../lib/forms/response-window'
 import { formatDateTime } from '../../utils/date'
@@ -22,6 +22,7 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
 }) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
+  const [copying, setCopying] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
@@ -47,13 +48,14 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
   async function copyPublicLink() {
     if (!published) return
     setError('')
+    setCopying(true)
     try {
       await navigator.clipboard.writeText(new URL(formPath, window.location.origin).toString())
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1800)
     } catch {
       setError('Could not copy the public link. Open Sharing to copy it manually.')
-    }
+    } finally { setCopying(false) }
   }
 
   async function updateResponseState(opening: boolean) {
@@ -75,7 +77,7 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
       setCloseConfirmOpen(true)
       return
     }
-    void updateResponseState(true)
+    return updateResponseState(true)
   }
 
   async function toggleOverride() {
@@ -125,31 +127,37 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
     } finally { setBusy(false) }
   }
 
+  const actionLinkClass = 'inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/80 bg-white/70 px-2.5 text-[11px] font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200/70 backdrop-blur-md transition hover:border-sky-200 hover:bg-white hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 disabled:cursor-wait disabled:opacity-60 sm:px-3 sm:text-xs'
+
   return <>
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {!archived && canEdit && <Link href={`/forms/${encodeURIComponent(form.id)}/edit#customize-form`}><Button variant="outline" size="sm" leftIcon={<Pencil className="h-4 w-4" />}>Customize form</Button></Link>}
-        <Link href={`/forms/${encodeURIComponent(form.id)}#form-analytics`}><Button variant="outline" size="sm" leftIcon={<BarChart3 className="h-4 w-4" />}>Analytics</Button></Link>
-        {!archived && published && canGenerateQr && <Link href={`/forms/${encodeURIComponent(form.id)}/share#shareable-qr`}><Button variant="primary" size="sm" leftIcon={<QrCode className="h-4 w-4" />}>Display QR</Button></Link>}
-        {!archived && <Link href={`/forms/${encodeURIComponent(form.id)}/share`}><Button variant="outline" size="sm" leftIcon={<Share2 className="h-4 w-4" />}>Sharing</Button></Link>}
-        {!archived && published && <Button variant="outline" size="sm" disabled={copied} onClick={() => void copyPublicLink()} leftIcon={copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}>{copied ? 'Copied' : 'Copy Link'}</Button>}
-        <Link href={`/forms/${encodeURIComponent(form.id)}/responses`}><Button variant="outline" size="sm" leftIcon={<Users className="h-4 w-4" />}>Responses</Button></Link>
-        {!archived && published && <Link href={`/form/${encodeURIComponent(form.publicToken)}`} target="_blank" rel="noreferrer"><Button variant="outline" size="sm" leftIcon={<ExternalLink className="h-4 w-4" />}>Open Form</Button></Link>}
-        {!archived && canEdit && published && <Button variant="outline" size="sm" disabled={busy} onClick={toggleResponses}>{responseState === 'ACCEPTING' ? 'Close Responses' : 'Open Responses'}</Button>}
-        {archived && canArchive && <Button variant="secondary" size="sm" disabled={busy} onClick={() => void restoreForm()} leftIcon={<RotateCcw className="h-4 w-4" />}>Restore Form</Button>}
-        {!archived && canArchive && <Button variant="danger" size="sm" onClick={() => { setPassword(''); setArchiveError(''); setArchiveOpen(true) }} leftIcon={<Archive className="h-4 w-4" />}>Archive Form</Button>}
+      <div className="space-y-2.5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {!archived && published && canGenerateQr && <Link className={`${actionLinkClass} col-span-2 !border-sky-600 !bg-sky-600 !text-white shadow-sky-900/10 hover:!border-sky-700 hover:!bg-sky-700 hover:!text-white sm:col-span-1`} href={`/forms/${encodeURIComponent(form.id)}/share#shareable-qr`}><QrCode className="h-4 w-4 shrink-0" aria-hidden="true" />Display QR</Link>}
+          <Link className={`${actionLinkClass} sm:order-2`} href={`/forms/${encodeURIComponent(form.id)}/responses`}><Users className="h-4 w-4" aria-hidden="true" />Responses</Link>
+          {!archived && canEdit && <Link className={`${actionLinkClass} sm:order-3`} href={`/forms/${encodeURIComponent(form.id)}/edit#customize-form`}><Pencil className="h-4 w-4" aria-hidden="true" />Customize</Link>}
+          <Link className={`${actionLinkClass} sm:order-4`} href={`/forms/${encodeURIComponent(form.id)}/analytics`}><BarChart3 className="h-4 w-4" aria-hidden="true" />Analytics</Link>
+          {!archived && <Link className={`${actionLinkClass} sm:order-5`} href={`/forms/${encodeURIComponent(form.id)}/share`}><Share2 className="h-4 w-4" aria-hidden="true" />Sharing</Link>}
+          {!archived && published && <button type="button" aria-live="polite" aria-busy={copying} className={actionLinkClass} disabled={copied || copying} onClick={() => void copyPublicLink()}><span className="flex items-center gap-2">{copying ? <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" /> : copied ? <Check className="h-4 w-4 shrink-0 text-emerald-600" /> : <Copy className="h-4 w-4 shrink-0" />}{copying ? 'Copying…' : copied ? 'Copied' : 'Copy link'}</span></button>}
+          {!archived && published && <Link className={`${actionLinkClass} sm:order-7`} href={`/form/${encodeURIComponent(form.publicToken)}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" aria-hidden="true" />Open form</Link>}
+          {!archived && canEdit && published && <button type="button" className={actionLinkClass} disabled={busy} onClick={toggleResponses}>{busy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : responseState === 'ACCEPTING' ? <X className="h-4 w-4 shrink-0" aria-hidden="true" /> : <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}{responseState === 'ACCEPTING' ? 'Close responses' : 'Open responses'}</button>}
+          {archived && canArchive && <Button variant="secondary" size="sm" disabled={busy} onClick={() => restoreForm()} leftIcon={<RotateCcw className="h-4 w-4" />}>{busy ? 'Restoring…' : 'Restore form'}</Button>}
+        </div>
+        {!archived && canArchive && <button type="button" className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-rose-200/90 bg-rose-50/80 px-3 text-xs font-semibold text-rose-700 shadow-sm ring-1 ring-white/70 backdrop-blur-md transition hover:border-rose-300 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 sm:w-auto" onClick={() => { setPassword(''); setArchiveError(''); setArchiveOpen(true) }}><Archive className="h-4 w-4 shrink-0" aria-hidden="true" />Archive form</button>}
       </div>
 
-      {!archived && canOverride && published && <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-        {!overrideActive && <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">Extra response duration
-          <select value={overrideMinutes} onChange={(event) => setOverrideMinutes(Number(event.target.value))} className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800">
+      {!archived && canOverride && published && <div className="flex flex-col gap-2 rounded-xl border border-white/80 bg-white/55 p-3 shadow-sm ring-1 ring-slate-200/60 backdrop-blur-md sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-slate-600">Extra response window</span>
+          {!overrideActive && <label className="sr-only" htmlFor="extra-response-duration">Extra response duration</label>}
+          {!overrideActive && <select id="extra-response-duration" value={overrideMinutes} onChange={(event) => setOverrideMinutes(Number(event.target.value))} className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600">
             {[5, 10, 15, 30, 60].map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}
-          </select>
-        </label>}
-        <Button variant={overrideActive ? 'danger' : 'secondary'} size="sm" disabled={busy} onClick={() => void toggleOverride()}>
-          {busy ? 'Updating responses…' : overrideActive ? 'Close Extra Responses' : `Open Responses for ${overrideMinutes} min`}
+          </select>}
+          {overrideActive && <p role="status" className="text-xs text-emerald-700">Open until {formatDateTime(form.responseOverrideUntil!)}.</p>}
+        </div>
+        <Button variant={overrideActive ? 'danger' : 'secondary'} size="sm" className="w-full sm:w-auto" disabled={busy} onClick={() => toggleOverride()}>
+          {busy ? <><LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />Updating…</> : overrideActive ? <><X className="h-4 w-4" aria-hidden="true" />Close extra window</> : <><Check className="h-4 w-4" aria-hidden="true" />Open for {overrideMinutes} min</>}
         </Button>
-        {overrideActive && <p role="status" className="text-xs text-emerald-700">Responses are temporarily open until {formatDateTime(form.responseOverrideUntil!)}. They will close automatically.</p>}
       </div>}
       {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
     </div>
@@ -157,7 +165,7 @@ export function CustomFormOperations({ form, canEdit, canGenerateQr, canOverride
     <ConfirmDialog
       isOpen={closeConfirmOpen}
       onClose={() => setCloseConfirmOpen(false)}
-      onConfirm={() => void updateResponseState(false)}
+      onConfirm={() => updateResponseState(false)}
       title="Close responses for this form?"
       message="People will no longer be able to submit responses until the form is reopened."
       confirmLabel="Close responses"

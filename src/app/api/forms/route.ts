@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
 import { createCustomForm, getCustomForms } from '../../../lib/forms/form-service'
+import { recordActivity } from '../../../lib/activity/activity-service'
 
 const formDetailsSchema = z.object({
   title: z.string().trim().min(3).max(180),
@@ -21,7 +22,8 @@ export async function GET() {
   if (!user) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
   if (!hasPermission(user.role, 'session:view')) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
   try {
-    return NextResponse.json({ success: true, data: await getCustomForms() })
+    const forms = await getCustomForms()
+    return NextResponse.json({ success: true, data: forms })
   } catch (error) {
     console.error('Could not load custom forms:', error)
     return NextResponse.json({ success: false, error: 'Could not load forms.' }, { status: 500 })
@@ -36,6 +38,7 @@ export async function POST(request: Request) {
     const parsed = formDetailsSchema.safeParse(await request.json())
     if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || 'Enter valid form details.' }, { status: 400 })
     const form = await createCustomForm(parsed.data, user.id)
+    await recordActivity({ actor: user, action: 'custom_form.created', targetType: 'custom_form', targetId: form.id, targetLabel: form.title, summary: `Created custom form “${form.title}”` })
     return NextResponse.json({ success: true, data: form }, { status: 201 })
   } catch (error) {
     console.error('Could not create custom form:', error)

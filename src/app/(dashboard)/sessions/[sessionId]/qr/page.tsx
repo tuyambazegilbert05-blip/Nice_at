@@ -35,6 +35,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null)
   const [accessChecked, setAccessChecked] = useState(false)
   const [accessError, setAccessError] = useState('')
+  const [actionError, setActionError] = useState('')
   const posterRef = useRef<HTMLDivElement>(null)
   const permissions = currentRole ? ROLE_PERMISSIONS[currentRole] ?? [] : []
   const canGenerate = permissions.includes('qr:generate')
@@ -79,13 +80,13 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
     ? `${window.location.origin}/attend/${session.publicToken}`
     : `/attend/${session.publicToken}`
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!canGenerate) return
-    if (typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(attendanceUrl)
+    try {
+      await navigator.clipboard.writeText(attendanceUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    }
+    } catch { setActionError('Could not copy this attendance link. Try copying it from the browser address bar.') }
   }
 
   const handleDownloadFlyer = async () => {
@@ -127,10 +128,10 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
       {/* Top Header */}
       <div className="flex items-center justify-between print-hide">
         <div className="flex items-center gap-3">
-          <Link href={`/sessions/${session.id}`}>
-            <button className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-50">
+          <Link href={`/sessions/${session.id}`} aria-label="Back to session">
+            <span className="inline-flex rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50">
               <ArrowLeft className="w-4 h-4" />
-            </button>
+            </span>
           </Link>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Attendance QR Display</h1>
@@ -155,6 +156,7 @@ export default function SessionQRPage({ params }: { params: Promise<{ sessionId:
           </a>
         </div>
       </div>
+      {actionError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 print-hide">{actionError}</p>}
 
       {/* Main Grid: Live Poster on Left, Actions on Right */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

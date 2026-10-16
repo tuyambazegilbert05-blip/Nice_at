@@ -4,6 +4,7 @@ import { getSessionByPublicToken, getSessionById } from '../../../lib/sessions/s
 import { getCurrentUser } from '../../../lib/auth'
 import { Session } from '../../../types/session'
 import { isWithinAttendanceWindow } from '../../../utils/date'
+import { recordActivity } from '../../../lib/activity/activity-service'
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
       },
       errorCorrectionLevel: 'H',
     })
+
 
     let publicSession: (Record<string, string | boolean> & { attendanceState: string }) | undefined
     if (session && token) {

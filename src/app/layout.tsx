@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import 'driver.js/dist/driver.css'
 import { ButtonFeedback } from '../motion/gsap/ButtonFeedback'
+import { ScientificFusionBackground } from '../components/ui/ScientificFusionBackground'
+import { NavigationFeedback } from '../components/ui/NavigationFeedback'
 
 export const metadata: Metadata = {
   title: 'NiCE Club Rwanda — Attendance Platform',
@@ -20,8 +22,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
-      <body className="h-full min-h-screen bg-slate-50 text-slate-900 antialiased font-sans">
-        <ButtonFeedback>{children}</ButtonFeedback>
+      <body className="h-full min-h-screen bg-slate-50 bg-scientific-grid text-slate-900 antialiased font-sans">
+        <ScientificFusionBackground />
+        <NavigationFeedback />
+        <div className="relative z-10 min-h-screen">
+          <ButtonFeedback>{children}</ButtonFeedback>
+        </div>
       </body>
     </html>
   )

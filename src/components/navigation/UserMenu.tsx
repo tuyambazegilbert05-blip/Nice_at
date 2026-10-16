@@ -3,13 +3,14 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, Settings, LogOut, ChevronDown, ShieldCheck } from 'lucide-react'
+import { User, Settings, LogOut, ChevronDown, ShieldCheck, LoaderCircle } from 'lucide-react'
 import { formatInitials } from '../../utils/format'
 import { AuthUser } from '../../types/user'
 
 export function UserMenu() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -34,13 +35,16 @@ export function UserMenu() {
   }, [])
 
   const handleSignOut = async () => {
+    if (signingOut) return
+    setSigningOut(true)
     try {
-      await fetch('/api/auth', { method: 'DELETE' })
+      const response = await fetch('/api/auth', { method: 'DELETE' })
+      if (!response.ok) throw new Error('Sign out failed')
       setIsOpen(false)
       router.push('/login')
     } catch (err) {
       console.error('Failed to sign out:', err)
-      router.push('/login')
+      setSigningOut(false)
     }
   }
 
@@ -95,11 +99,13 @@ export function UserMenu() {
 
           <div className="pt-1 border-t border-slate-100">
             <button
+              type="button"
+              disabled={signingOut}
               onClick={handleSignOut}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 transition-colors text-left"
+              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 transition-colors text-left disabled:cursor-wait disabled:opacity-60"
             >
-              <LogOut className="w-4 h-4 text-rose-500" />
-              <span>Sign Out</span>
+              {signingOut ? <LoaderCircle className="w-4 h-4 animate-spin text-rose-500" /> : <LogOut className="w-4 h-4 text-rose-500" />}
+              <span>{signingOut ? 'Signing out…' : 'Sign Out'}</span>
             </button>
           </div>
         </div>

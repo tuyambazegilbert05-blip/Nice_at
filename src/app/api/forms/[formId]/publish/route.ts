@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '../../../../../lib/auth'
 import { hasPermission } from '../../../../../lib/permissions/rbac'
 import { FormRevisionConflictError, publishCustomForm } from '../../../../../lib/forms/form-service'
+import { recordActivity } from '../../../../../lib/activity/activity-service'
 
 export async function POST(request: Request, { params }: { params: Promise<{ formId: string }> }) {
   const user = await getCurrentUser()
@@ -12,6 +13,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ for
     if (!Number.isInteger(body.revision) || Number(body.revision) < 1) return NextResponse.json({ success: false, error: 'Save the latest draft before publishing.' }, { status: 400 })
     const { formId } = await params
     const form = await publishCustomForm(formId, Number(body.revision), user.id)
+    await recordActivity({ actor: user, action: 'custom_form.published', targetType: 'custom_form', targetId: form.id, targetLabel: form.title, summary: `Published custom form “${form.title}”`, details: { revision: Number(body.revision) } })
     return NextResponse.json({ success: true, data: form })
   } catch (error) {
     if (error instanceof FormRevisionConflictError) return NextResponse.json({ success: false, error: error.message }, { status: 409 })

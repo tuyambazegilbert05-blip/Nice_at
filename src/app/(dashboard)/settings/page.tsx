@@ -16,9 +16,11 @@ import {
   Save,
   X,
   ClipboardList,
+  LoaderCircle,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card'
 import { RestrictedActionPanel } from '../../../components/ui/RestrictedAction'
+import { EmailSuccessDialog } from '../../../components/ui/EmailSuccessDialog'
 import { Badge } from '../../../components/ui/Badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../components/ui/Table'
 import { ROLE_DESCRIPTIONS, ROLE_PERMISSIONS } from '../../../lib/permissions/roles'
@@ -44,6 +46,7 @@ export default function SettingsPage() {
   const [inviteName, setInviteName] = useState('')
   const [inviteRole, setInviteRole] = useState<UserRole>('STAFF')
   const [inviteStatus, setInviteStatus] = useState('')
+  const [invitedEmail, setInvitedEmail] = useState('')
   const [inviting, setInviting] = useState(false)
 
   async function sendInvitation(event: React.FormEvent<HTMLFormElement>) {
@@ -61,7 +64,8 @@ export default function SettingsPage() {
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Invitation could not be sent.')
-      setInviteStatus(result.message)
+      setInvitedEmail(inviteEmail.trim())
+      setInviteStatus('')
       setInviteEmail('')
       setInviteName('')
     } catch (error) {
@@ -162,6 +166,7 @@ export default function SettingsPage() {
       {/* Navigation Tabs */}
       <div className="flex border-b border-slate-200 space-x-6 text-xs font-semibold">
         <button
+          data-activity-path="/settings/team"
           onClick={() => setActiveTab('team')}
           className={`pb-3 flex items-center gap-2 border-b-2 transition-colors ${
             activeTab === 'team'
@@ -174,6 +179,7 @@ export default function SettingsPage() {
         </button>
 
         <button
+          data-activity-path="/settings/permissions"
           onClick={() => setActiveTab('permissions')}
           className={`pb-3 flex items-center gap-2 border-b-2 transition-colors ${
             activeTab === 'permissions'
@@ -186,6 +192,7 @@ export default function SettingsPage() {
         </button>
 
         <button
+          data-activity-path="/settings/organization"
           onClick={() => setActiveTab('organization')}
           className={`pb-3 flex items-center gap-2 border-b-2 transition-colors ${
             activeTab === 'organization'
@@ -198,6 +205,7 @@ export default function SettingsPage() {
         </button>
 
         {currentRole === 'ADMIN' && <button
+          data-activity-path="/settings/activity"
           onClick={() => setActiveTab('activity')}
           className={`pb-3 flex items-center gap-2 border-b-2 transition-colors ${
             activeTab === 'activity'
@@ -240,11 +248,19 @@ export default function SettingsPage() {
                 <label className="text-xs font-semibold text-slate-700">Email address<input required type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" placeholder="colleague@example.rw" /></label>
                 <label className="text-xs font-semibold text-slate-700">Name (optional)<input value={inviteName} onChange={(event) => setInviteName(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" placeholder="Colleague name" /></label>
                 <label className="text-xs font-semibold text-slate-700">Role<select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as UserRole)} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm">{(['ADMIN', 'MANAGER', 'STAFF', 'VIEWER'] as UserRole[]).map((role) => <option key={role} value={role}>{ROLE_DESCRIPTIONS[role].title}</option>)}</select></label>
-                <button disabled={inviting} className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-60"><UserPlus className="h-4 w-4" />{inviting ? 'Sending…' : 'Send invitation'}</button>
+                <button disabled={inviting} aria-busy={inviting} className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-60">{inviting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}{inviting ? 'Sending…' : 'Send invitation'}</button>
               </form>
               {inviteStatus && <p role="status" className="mt-3 text-sm text-slate-700">{inviteStatus}</p>}
             </CardContent>
           </Card>}
+          <EmailSuccessDialog
+            isOpen={Boolean(invitedEmail)}
+            onClose={() => setInvitedEmail('')}
+            title="Invitation email sent"
+            message={`The invitation is on its way to ${invitedEmail}.`}
+            nextStep="Ask your teammate to check their inbox and spam folder, then use the invitation link within seven days to join the platform."
+            actionLabel="Done"
+          />
           {currentRole !== null && <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
@@ -308,7 +324,7 @@ export default function SettingsPage() {
                       </TableCell>
                       {currentRole === 'ADMIN' && <TableCell>
                         {user.id === currentUserId ? <span className="text-xs text-slate-400">Your account</span> : editingRoleId === user.id ? <div className="flex items-center gap-1.5">
-                          <button type="button" onClick={() => void saveUserRole(user.id)} disabled={savingRoleId !== null} className="inline-flex items-center gap-1 rounded-md bg-sky-700 px-2 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50"><Save className="h-3.5 w-3.5" />{savingRoleId === user.id ? 'Saving…' : 'Save'}</button>
+                          <button type="button" onClick={() => void saveUserRole(user.id)} disabled={savingRoleId !== null} aria-busy={savingRoleId === user.id} className="inline-flex items-center gap-1 rounded-md bg-sky-700 px-2 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50">{savingRoleId === user.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}{savingRoleId === user.id ? 'Saving…' : 'Save'}</button>
                           <button type="button" onClick={() => setEditingRoleId(null)} disabled={savingRoleId !== null} aria-label="Cancel role change" className="rounded-md border border-slate-300 p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50"><X className="h-3.5 w-3.5" /></button>
                         </div> : <button type="button" onClick={() => { setRoleDrafts((current) => ({ ...current, [user.id]: user.role })); setEditingRoleId(user.id); setRoleMessages((current) => ({ ...current, [user.id]: { kind: 'success', text: '' } })) }} disabled={savingRoleId !== null} className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"><Pencil className="h-3.5 w-3.5" />Change role</button>}
                         {roleMessages[user.id]?.text && <p role={roleMessages[user.id].kind === 'error' ? 'alert' : 'status'} className={`mt-1 max-w-44 text-[11px] ${roleMessages[user.id].kind === 'error' ? 'text-rose-700' : 'text-emerald-700'}`}>{roleMessages[user.id].text}</p>}

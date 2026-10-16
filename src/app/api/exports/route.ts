@@ -3,6 +3,7 @@ import { getAttendanceForSession, getAllAttendance } from '../../../lib/attendan
 import { getSessionById } from '../../../lib/sessions/session-service'
 import { getCurrentUser } from '../../../lib/auth'
 import { hasPermission } from '../../../lib/permissions/rbac'
+import { recordActivity } from '../../../lib/activity/activity-service'
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,6 +71,8 @@ export async function GET(request: NextRequest) {
     const filename = session
       ? `nice-attendance-${session.publicToken}.csv`
       : 'nice-attendance-master.csv'
+
+    await recordActivity({ actor: user, action: 'attendance.exported', targetType: session ? 'session' : 'attendance', targetId: session?.id ?? null, targetLabel: session?.title ?? 'All sessions', summary: session ? `Exported attendance for “${session.title}”` : 'Exported attendance records', details: { recordCount: records.length, format: 'csv' } })
 
     return new NextResponse(csvContent, {
       status: 200,

@@ -1,8 +1,9 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Mail, Send } from 'lucide-react'
+import { LoaderCircle, Mail, Send } from 'lucide-react'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
+import { EmailSuccessDialog } from '../../../components/ui/EmailSuccessDialog'
 import { RestrictedActionPanel } from '../../../components/ui/RestrictedAction'
 import type { UserRole } from '../../../types/user'
 
@@ -18,7 +19,8 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
   const [loading, setLoading] = useState(canCommunicate)
   const [sending, setSending] = useState(false)
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false)
-  const [status, setStatus] = useState('')
+  const [successCount, setSuccessCount] = useState<number | null>(null)
+  const [failedCount, setFailedCount] = useState(0)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -59,7 +61,8 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
   function reviewSend(event: FormEvent) {
     event.preventDefault()
     if (!canCommunicate) return setError(`Access denied: your ${role} role cannot use communications.`)
-    setStatus('')
+    setSuccessCount(null)
+    setFailedCount(0)
     setError('')
     if (!finalRecipients.length) return setError('Select or enter at least one recipient.')
     if (finalRecipients.length > 100) return setError('Send to no more than 100 recipients at a time.')
@@ -76,7 +79,10 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
       })
       const result = await response.json()
       if (!response.ok && response.status !== 207) throw new Error(result.error || 'Email could not be sent.')
-      setStatus(result.message || `${result.sent} email(s) accepted by Brevo.`)
+      if (result.sent > 0) {
+        setSuccessCount(result.sent)
+        setFailedCount(result.failed || 0)
+      }
       if (result.failedRecipients?.length) setError(`Not sent: ${result.failedRecipients.join(', ')}`)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Email could not be sent.')
@@ -111,8 +117,8 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
         <p className="text-xs text-slate-500">Total recipients: {finalRecipients.length} / 100</p>
         <label className="block text-sm font-medium text-slate-700">Subject<input required minLength={3} maxLength={180} value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="A NiCE Club update" /></label>
         <label className="block text-sm font-medium text-slate-700">Message<textarea required minLength={2} maxLength={6000} rows={8} value={message} onChange={(event) => setMessage(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Write your update… Use a blank line to start a new paragraph." /></label>
-        {status && <p role="status" className="text-sm font-medium text-emerald-700">{status}</p>}{error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-        <button disabled={sending || !finalRecipients.length} className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-50"><Send className="h-4 w-4" />{sending ? 'Sending emails…' : 'Review and send'}</button>
+        {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+        <button disabled={sending || !finalRecipients.length} aria-busy={sending} className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-50">{sending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{sending ? 'Sending emails…' : 'Review and send'}</button>
       </section>
       <section className="space-y-3"><div><h2 className="font-semibold text-slate-900">Branded email preview</h2><p className="mt-1 text-xs text-slate-500">This preview uses the same NiCE Club template and escaped message content used for delivery.</p></div><iframe title="Branded email preview" sandbox="" srcDoc={preview} className="h-[680px] w-full rounded-xl border border-slate-200 bg-slate-100" /></section>
       </fieldset>
@@ -120,10 +126,18 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
     <ConfirmDialog
       isOpen={sendConfirmOpen}
       onClose={() => setSendConfirmOpen(false)}
-      onConfirm={() => void sendEmails()}
+      onConfirm={() => sendEmails()}
       title="Confirm email delivery"
       message={`Send “${subject}” to ${finalRecipients.length} recipient(s)?`}
       confirmLabel="Send emails"
+    />
+    <EmailSuccessDialog
+      isOpen={successCount !== null}
+      onClose={() => setSuccessCount(null)}
+      title="Email update sent"
+      message={`Your email is on its way to ${successCount ?? 0} recipient${successCount === 1 ? '' : 's'}.`}
+      nextStep={failedCount ? `${failedCount} address${failedCount === 1 ? '' : 'es'} could not be reached. Review the notice on this page and check those addresses before sending again.` : 'You can continue composing another update or leave this page. Recipients can check their inbox and spam folder.'}
+      actionLabel="Back to communications"
     />
   </div>
 }

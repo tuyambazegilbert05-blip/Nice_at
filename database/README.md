@@ -14,6 +14,8 @@ PostgreSQL is the persistent source of truth for staff accounts and profiles, in
 
 `npm run db:migrate` verifies the required tables exist when it completes. It needs a reachable PostgreSQL server and a database that already exists; it does not create the server or database itself.
 
+For Vercel deployments, configure a long random `CRON_SECRET` environment variable. The daily scheduled endpoint uses it to authorize the one-year activity retention cleanup.
+
 ## Data model
 
 - `users`: normalized unique staff email, password hash, role, active state, timestamps, and server-persisted onboarding state. Migration 010 marks pre-existing accounts complete while new accounts default to incomplete; migration 011 records whether the first tour was skipped or completed.
@@ -30,7 +32,8 @@ PostgreSQL is the persistent source of truth for staff accounts and profiles, in
 - `user_invitations`: hashed, seven-day staff invitation links and acceptance timestamps.
 - `email_delivery_log`: recipient, category, provider result, and timestamp for each attempt; message bodies and API secrets are not stored.
 - `password_reset_tokens`: hashed, expiring, single-use password recovery tokens.
-- `activity_log`: actor and role snapshots, action, related record, details, and timestamp for selected staff mutations. The admin-only log starts recording after migration 008; it is not a record of every page view or failed request.
+- `activity_log`: actor and role snapshots, meaningful staff page visits and business actions, related record, safe metadata, and timestamp. Staff can review their own history; administrators can review all staff activity. Passwords, tokens, message bodies, recipient lists, and submitted answers are excluded.
+- Activity history is limited to 25 entries per page with a “Next 25” control. Migration 015 removes records already older than one year; the Vercel daily cron at 03:00 UTC continues this cleanup. Set `CRON_SECRET` in the deployment environment so only the scheduler can run it.
 - `attendance_records.email_updates_opt_in`: optional consent used to include attendees in the Communications contact picker.
 - `schema_migrations`: applied migration ledger.
 

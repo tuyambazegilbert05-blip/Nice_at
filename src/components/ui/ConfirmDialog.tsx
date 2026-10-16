@@ -1,13 +1,14 @@
 'use client'
 
 import { AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from './Button'
 import { Modal } from './Modal'
 
 export interface ConfirmDialogProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: () => void | PromiseLike<unknown>
   title: string
   message: string
   confirmLabel: string
@@ -23,9 +24,14 @@ export function ConfirmDialog({
   confirmLabel,
   confirmVariant = 'primary',
 }: ConfirmDialogProps) {
+  const [busy, setBusy] = useState(false)
   const confirm = () => {
+    const result = onConfirm()
+    if (result && typeof result.then === 'function') {
+      setBusy(true)
+      return Promise.resolve(result).then(() => onClose()).finally(() => setBusy(false))
+    }
     onClose()
-    onConfirm()
   }
 
   return <Modal isOpen={isOpen} onClose={onClose} title={title} className="max-w-md">
@@ -35,8 +41,8 @@ export function ConfirmDialog({
         <p>{message}</p>
       </div>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-        <Button type="button" variant={confirmVariant} onClick={confirm}>{confirmLabel}</Button>
+        <Button type="button" variant="outline" disabled={busy} onClick={onClose}>Cancel</Button>
+        <Button type="button" variant={confirmVariant} disabled={busy} isLoading={busy} onClick={confirm}>{busy ? 'Working…' : confirmLabel}</Button>
       </div>
     </div>
   </Modal>

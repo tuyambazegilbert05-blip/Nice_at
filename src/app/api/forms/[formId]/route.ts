@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '../../../../lib/auth'
 import { hasPermission } from '../../../../lib/permissions/rbac'
 import { getCustomFormById, getCustomFormSubmissions, getCustomFormDeliveryHistory, saveCustomFormDraft, FormRevisionConflictError } from '../../../../lib/forms/form-service'
+import { recordActivity } from '../../../../lib/activity/activity-service'
 
 export async function GET(_: Request, { params }: { params: Promise<{ formId: string }> }) {
   const user = await getCurrentUser()
@@ -27,6 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ fo
     if (!Number.isInteger(body.revision) || Number(body.revision) < 1) return NextResponse.json({ success: false, error: 'Reload the form and try saving again.' }, { status: 400 })
     const { formId } = await params
     const form = await saveCustomFormDraft(formId, body.config, Number(body.revision), user.id)
+    await recordActivity({ actor: user, action: 'custom_form.draft_updated', targetType: 'custom_form', targetId: form.id, targetLabel: form.title, summary: `Updated draft for “${form.title}”`, details: { revision: form.draftRevision } })
     return NextResponse.json({ success: true, data: form })
   } catch (error) {
     if (error instanceof FormRevisionConflictError) return NextResponse.json({ success: false, error: error.message }, { status: 409 })

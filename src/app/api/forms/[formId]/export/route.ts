@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '../../../../../lib/auth'
 import { hasPermission } from '../../../../../lib/permissions/rbac'
 import { getCustomFormById, getCustomFormSubmissions } from '../../../../../lib/forms/form-service'
+import { recordActivity } from '../../../../../lib/activity/activity-service'
 
 function csv(value: unknown): string {
   const text = Array.isArray(value) ? value.join('; ') : value === null || value === undefined ? '' : String(value)
@@ -27,6 +28,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ formId: st
     for (const submission of submissions) {
       for (const field of submission.formSnapshot.fields) addField(field, submission.formVersion)
     }
+
+    await recordActivity({ actor: user, action: 'custom_form.responses_exported', targetType: 'custom_form', targetId: form.id, targetLabel: form.title, summary: `Exported responses for “${form.title}”`, details: { responseCount: submissions.length, format: 'csv' } })
     const fields = [...fieldMap.values()]
     const rows = [
       ['Full Name', 'Email', 'Submitted At (UTC)', ...fields.map((field) => `${field.label} (form v${field.version})`)].map(csv).join(','),

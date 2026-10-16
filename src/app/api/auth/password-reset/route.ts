@@ -4,8 +4,9 @@ import { query, withTransaction } from '../../../../lib/database/client'
 import { hashPassword } from '../../../../lib/auth/passwords'
 import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../../../../lib/auth/password-policy'
 import { deliverBrandedEmail } from '../../../../lib/email/brevo'
+import type { UserRole } from '../../../../types/user'
 
-type UserRow = { id: string; email: string; name: string | null }
+type UserRow = { id: string; email: string; name: string | null; role: UserRole }
 const appUrl = () => (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
 const digest = (token: string) => createHash('sha256').update(token).digest('hex')
 
@@ -14,9 +15,14 @@ export async function POST(request: Request) {
   if (body.action === 'request') {
     const email = body.email?.trim().toLowerCase()
     if (!email) return NextResponse.json({ success: false, error: 'Email is required.' }, { status: 400 })
-    const result = await query<UserRow>('SELECT id,email,name FROM users WHERE lower(email)=lower($1) AND is_active=true LIMIT 1', [email])
+    const result = await query<UserRow>('SELECT id,email,name,role FROM users WHERE lower(email)=lower($1) AND is_active=true LIMIT 1', [email])
     const user = result.rows[0]
     if (user) {
+      await query(
+        `INSERT INTO activity_log(actor_id,actor_name,actor_role,action,target_type,target_id,target_label,summary,details)
+         VALUES($1,$2,$3,'account.password_reset_requested','staff_account',$1,$4,'Requested a password reset link','{}'::jsonb)`,
+        [user.id, user.name || user.email, user.role, user.name || 'Staff account'],
+      )
       const rawToken = randomBytes(32).toString('hex')
       await query('UPDATE password_reset_tokens SET used_at=now() WHERE user_id=$1 AND used_at IS NULL', [user.id])
       await query('INSERT INTO password_reset_tokens(id,user_id,token_hash,expires_at) VALUES($1,$2,$3,now()+interval \'10 minutes\')', [`reset_${randomUUID()}`, user.id, digest(rawToken)])
@@ -35,10 +41,17 @@ export async function POST(request: Request) {
     const result = await query<{ id: string; user_id: string }>('SELECT id,user_id FROM password_reset_tokens WHERE token_hash=$1 AND used_at IS NULL AND expires_at>now() LIMIT 1', [digest(token)])
     const reset = result.rows[0]
     if (!reset) return NextResponse.json({ success: false, error: 'This reset link is invalid or has expired. Please request a new one.' }, { status: 400 })
+    const account = await query<{ id: string; name: string; role: UserRole }>('SELECT id,name,role FROM users WHERE id=$1 AND is_active=true', [reset.user_id])
+    if (!account.rows[0]) return NextResponse.json({ success: false, error: 'This reset link is invalid or has expired. Please request a new one.' }, { status: 400 })
     await withTransaction(async (client) => {
       await client.query('UPDATE users SET password_hash=$1, updated_at=now() WHERE id=$2', [hashPassword(password), reset.user_id])
       await client.query('UPDATE password_reset_tokens SET used_at=now() WHERE id=$1', [reset.id])
       await client.query('UPDATE password_reset_tokens SET used_at=now() WHERE user_id=$1 AND used_at IS NULL', [reset.user_id])
+      await client.query(
+        `INSERT INTO activity_log(actor_id,actor_name,actor_role,action,target_type,target_id,target_label,summary,details)
+         VALUES($1,$2,$3,'account.password_reset_completed','staff_account',$1,$2,'Reset account password using a secure recovery link','{}'::jsonb)`,
+        [account.rows[0].id, account.rows[0].name, account.rows[0].role],
+      )
     })
     return NextResponse.json({ success: true, message: 'Your password has been updated. You can now sign in.' })
   }

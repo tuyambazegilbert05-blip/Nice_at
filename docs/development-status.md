@@ -4,6 +4,21 @@
 **Lead Engineer / Pair**: Antigravity Assistant & Lead Product Engineer
 **Current Active Phases**: PHASES 11–13 — EXPERIENCE SYSTEMS
 
+## Platform-wide Action Feedback — UPDATED (2026-10-16)
+
+- Shared buttons now show an accessible pending spinner and prevent repeat clicks when their action returns a promise. Confirmation dialogs remain open during async work and show a pending state; app route links display a subtle global progress cue while navigation completes.
+- Added explicit in-progress feedback to native account, communications, team-role, sign-out, QR-copy, and Custom Forms actions. Local controls such as filters, tabs, password visibility, and opening details remain immediate and show their selected state.
+- Sign-in, attendee submissions, session/form creation and publishing, response-window saves, and graphic downloads retain their existing action-specific loading states.
+- Activity history now records staff-visible page visits and meaningful business actions such as creating or publishing sessions/forms, changing access or response windows, sending communications, exporting records, and account security changes. Generic API route traffic is no longer recorded, and legacy `api.*` entries are hidden from the activity view. Staff can review their own history; administrators can review all staff activity with filtering and cursor-based pages of 25 entries. Migration 015 removes history older than one year, and a daily Vercel Cron endpoint continues retention cleanup using `CRON_SECRET`. Event metadata excludes passwords, tokens, message bodies, recipient lists, and form answers.
+
+## Shared Site Background — UPDATED (2026-10-16)
+
+- Applied the pale scientific grid as the root page background across public, authentication, and dashboard routes. Reused the existing session atom illustration at three times its prior size in six staggered fusion sequences behind page content: reactants converge, a brief energy pulse marks fusion, and the product follows an outward trajectory. The sequence respects reduced-motion preferences.
+
+## Public Form QR Availability — UPDATED (2026-10-16)
+
+- QR image generation now encodes the stable public form URL directly from its token and no longer opens a PostgreSQL connection just to verify the form title. This lets the QR preview and download work during transient database connection failures; the public form route still enforces whether the form exists and is available. Added the transparent NiCE logo on a white, blue-bordered plate at the center of the QR code, with high error correction retained for scan reliability.
+
 ## Stand-alone Custom Forms Section — IMPLEMENTED (2026-10-14)
 
 - Added a separate Custom Forms dashboard area with its own form details, draft builder, public link, QR display, response list, CSV export, and confirmation-email settings. It does not change the Scientific Sessions pages, `sessions` service, existing QR check-in API, or `/attend/[token]` submission flow.

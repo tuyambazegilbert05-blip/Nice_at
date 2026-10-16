@@ -3,6 +3,7 @@ import { getCurrentUser } from '../../../../../../../lib/auth'
 import { hasPermission } from '../../../../../../../lib/permissions/rbac'
 import { getCustomFormById, getCustomFormSubmission, getLatestCustomFormEmailStatus } from '../../../../../../../lib/forms/form-service'
 import { sendFormConfirmation } from '../../../../../../../lib/forms/email-service'
+import { recordActivity } from '../../../../../../../lib/activity/activity-service'
 
 export async function POST(_: Request, { params }: { params: Promise<{ formId: string; submissionId: string }> }) {
   const user = await getCurrentUser()
@@ -16,6 +17,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ formId: s
     if (!form || !submission) return NextResponse.json({ success: false, error: 'Response not found.' }, { status: 404 })
     if (status === 'ACCEPTED') return NextResponse.json({ success: false, error: 'The email provider already accepted this confirmation.' }, { status: 409 })
     const emailStatus = await sendFormConfirmation(form, submission)
+    await recordActivity({ actor: user, action: 'custom_form.confirmation_email_retried', targetType: 'form_submission', targetId: submission.id, targetLabel: form.title, summary: `Retried a confirmation email for “${form.title}”`, details: { emailStatus } })
     return NextResponse.json({ success: true, emailStatus })
   } catch (error) {
     console.error('Could not retry form confirmation:', error)

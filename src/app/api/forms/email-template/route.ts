@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '../../../../lib/auth'
 import { hasPermission } from '../../../../lib/permissions/rbac'
 import { getFormEmailTemplate, saveFormEmailTemplate } from '../../../../lib/forms/email-service'
+import { recordActivity } from '../../../../lib/activity/activity-service'
 
 const templateSchema = z.object({
   subject: z.string().trim().min(3).max(180),
@@ -26,6 +27,7 @@ export async function PUT(request: Request) {
   if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || 'Check the email template.' }, { status: 400 })
   try {
     await saveFormEmailTemplate(parsed.data, user.id)
+    await recordActivity({ actor: user, action: 'custom_form.email_template_updated', targetType: 'email_template', targetLabel: parsed.data.subject, summary: 'Updated custom form confirmation email template' })
     return NextResponse.json({ success: true, data: parsed.data })
   } catch (error) {
     console.error('Could not save the form email template:', error)

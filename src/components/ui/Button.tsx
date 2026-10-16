@@ -1,12 +1,15 @@
-import React from 'react'
+'use client'
+
+import React, { useRef, useState } from 'react'
 import { cn } from '../../utils/cn'
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
   size?: 'sm' | 'md' | 'lg'
   isLoading?: boolean
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void | PromiseLike<unknown>
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -20,10 +23,28 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       rightIcon,
       disabled,
       children,
+      onClick,
       ...props
     },
     ref
   ) => {
+    const [handlerPending, setHandlerPending] = useState(false)
+    const pendingRef = useRef(false)
+    const loading = isLoading || handlerPending
+
+    function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
+      if (!onClick || disabled || loading || pendingRef.current) return
+      const result = onClick(event)
+      if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+        pendingRef.current = true
+        setHandlerPending(true)
+        Promise.resolve(result).then(
+          () => { pendingRef.current = false; setHandlerPending(false) },
+          () => { pendingRef.current = false; setHandlerPending(false) },
+        )
+      }
+    }
+
     const baseStyles =
       'inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none'
 
@@ -49,11 +70,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        disabled={disabled || isLoading}
+        disabled={disabled || loading || pendingRef.current}
+        aria-busy={loading || undefined}
         className={cn(baseStyles, sizeStyles[size], variantStyles[variant], className)}
+        onClick={handleClick}
         {...props}
       >
-        {isLoading && (
+        {loading && (
           <svg
             className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
             fill="none"
@@ -74,9 +97,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             />
           </svg>
         )}
-        {!isLoading && leftIcon}
+        {!loading && leftIcon}
         {children}
-        {!isLoading && rightIcon}
+        {!loading && rightIcon}
       </button>
     )
   }

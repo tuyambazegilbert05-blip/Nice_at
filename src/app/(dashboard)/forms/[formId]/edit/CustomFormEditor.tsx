@@ -183,8 +183,8 @@ export default function CustomFormEditor({ initialForm, canManageTemplate }: {
         <Link href={`/forms/${encodeURIComponent(formId)}/responses`}><Button variant="outline" size="sm" leftIcon={<Users className="h-4 w-4" />}>Responses</Button></Link>
         <Link href={`/forms/${encodeURIComponent(formId)}/share`}><Button variant="outline" size="sm" leftIcon={<Share2 className="h-4 w-4" />}>Share & downloads</Button></Link>
         {canManageTemplate && <Link href="/forms/email-template"><Button variant="outline" size="sm" leftIcon={<Mail className="h-4 w-4" />}>Email message</Button></Link>}
-        <Button variant="outline" size="sm" disabled={status === 'saving' || status === 'conflict'} onClick={() => void retrySave()} leftIcon={<Save className="h-4 w-4" />}>Save draft</Button>
-        <Button size="sm" disabled={!isValid || status === 'saving' || status === 'conflict' || formStatus === 'CLOSED'} onClick={() => void publish()} leftIcon={<Check className="h-4 w-4" />}>{formStatus === 'PUBLISHED' ? 'Publish updates' : 'Publish form'}</Button>
+        <Button variant="outline" size="sm" disabled={status === 'saving' || status === 'conflict'} onClick={() => retrySave()} leftIcon={<Save className="h-4 w-4" />}>{status === 'saving' ? 'Saving draft…' : 'Save draft'}</Button>
+        <Button size="sm" disabled={!isValid || status === 'saving' || status === 'conflict' || formStatus === 'CLOSED'} onClick={() => publish()} leftIcon={<Check className="h-4 w-4" />}>{status === 'saving' ? 'Publishing…' : formStatus === 'PUBLISHED' ? 'Publish updates' : 'Publish form'}</Button>
       </div>
     </div>
 
@@ -193,13 +193,13 @@ export default function CustomFormEditor({ initialForm, canManageTemplate }: {
       <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${formStatus === 'PUBLISHED' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : formStatus === 'CLOSED' ? 'border-slate-200 bg-slate-100 text-slate-600' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{formStatus === 'PUBLISHED' ? `Published · version ${publishedVersion}` : formStatus}</span>
     </div>
 
-    {localConflict && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="font-semibold text-amber-950">This browser has a form draft based on an older server revision.</p><p className="mt-1 text-sm text-amber-900">Choose which copy to continue with. Restoring the browser copy will save it as a new server revision.</p><div className="mt-3 flex gap-2"><Button size="sm" onClick={() => void resolveLocal(true)}>Restore browser draft</Button><Button variant="outline" size="sm" onClick={() => void resolveLocal(false)}>Use server draft</Button></div></div>}
-    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"><span>{error}</span>{status === 'error' && <Button variant="outline" size="sm" onClick={() => void retrySave()} leftIcon={<RefreshCw className="h-3.5 w-3.5" />}>Retry</Button>}{status === 'conflict' && <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Reload latest version</Button>}</div>}
+    {localConflict && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="font-semibold text-amber-950">This browser has a form draft based on an older server revision.</p><p className="mt-1 text-sm text-amber-900">Choose which copy to continue with. Restoring the browser copy will save it as a new server revision.</p><div className="mt-3 flex gap-2"><Button size="sm" onClick={() => resolveLocal(true)}>Restore browser draft</Button><Button variant="outline" size="sm" onClick={() => resolveLocal(false)}>Use server draft</Button></div></div>}
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"><span>{error}</span>{status === 'error' && <Button variant="outline" size="sm" onClick={() => retrySave()} leftIcon={<RefreshCw className="h-3.5 w-3.5" />}>Retry</Button>}{status === 'conflict' && <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Reload latest version</Button>}</div>}
 
     {formStatus === 'PUBLISHED' && <p className="rounded-lg border border-sky-100 bg-sky-50 p-3 text-sm text-sky-900">You are customizing a draft of this published form. Version {publishedVersion} remains live until you select “Publish updates.” Existing responses stay connected to the version each attendee submitted.</p>}
     {formStatus === 'CLOSED' && <p className="rounded-lg border border-slate-200 bg-slate-100 p-3 text-sm text-slate-700">This form is closed and cannot be republished. Its published form and attendee records remain available for review.</p>}
     <div id="customize-form" className="scroll-mt-4"><h2 className="mb-3 text-lg font-bold text-slate-900">{formStatus === 'PUBLISHED' ? 'Customize published form' : formStatus === 'CLOSED' ? 'Published form fields' : 'Customize form'}</h2><AttendanceFormBuilder value={config} onChange={queueSave} /></div>
 
-    <div className="flex justify-start"><Button type="button" variant="ghost" onClick={() => router.push('/forms')}>Back to forms</Button></div>
+    <div className="flex justify-start"><Button type="button" variant="ghost" data-navigation-action="true" onClick={() => router.push('/forms')}>Back to forms</Button></div>
   </div>
 }

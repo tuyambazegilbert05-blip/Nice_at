@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Activity, Clock3, UserRound, X } from 'lucide-react'
+import { Activity, Clock3, Search, UserRound, X } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/Card'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -17,39 +17,64 @@ function readableKey(value: string): string {
   return value.replaceAll(/([A-Z])/g, ' $1').replaceAll('_', ' ').replace(/^./, (char) => char.toUpperCase())
 }
 
-export default function ActivityLogPanel() {
+export default function ActivityLogPanel({ scope = 'all' }: { scope?: 'all' | 'mine' }) {
   const [items, setItems] = useState<ActivityRecord[]>([])
   const [selected, setSelected] = useState<ActivityRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [filter, setFilter] = useState('')
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadMoreError, setLoadMoreError] = useState('')
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/activity')
+    fetch(`/api/activity${scope === 'mine' ? '?scope=mine' : ''}`)
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Could not load staff activity.')
-        if (!cancelled) setItems(result.data as ActivityRecord[])
+        if (!cancelled) { setItems(result.data as ActivityRecord[]); setHasMore(Boolean(result.hasMore)) }
       })
       .catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : 'Could not load staff activity.') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [scope])
+
+  const visibleItems = items.filter((item) => `${item.summary} ${item.action} ${item.targetLabel ?? ''} ${item.actorName}`.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()))
+
+  async function loadNextActivityPage() {
+    setLoadingMore(true)
+    setLoadMoreError('')
+    try {
+      const lastItem = items.at(-1)
+      if (!lastItem) return
+      const params = new URLSearchParams({ beforeCreatedAt: lastItem.createdAt, beforeId: lastItem.id })
+      if (scope === 'mine') params.set('scope', 'mine')
+      const response = await fetch(`/api/activity?${params}`)
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Could not load more activity.')
+      setItems((current) => [...current, ...(result.data as ActivityRecord[])])
+      setHasMore(Boolean(result.hasMore))
+    } catch (cause) {
+      setLoadMoreError(cause instanceof Error ? cause.message : 'Could not load older activity.')
+    } finally { setLoadingMore(false) }
+  }
 
   return <>
     <Card>
       <CardHeader>
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-sky-50 p-2 text-sky-700"><Activity className="h-5 w-5" /></div>
-          <div><CardTitle>Staff Activity Log</CardTitle><CardDescription>Recent actions by staff accounts. Select an entry to inspect its full details.</CardDescription></div>
+          <div><CardTitle>{scope === 'mine' ? 'My Activity' : 'Staff Activity Log'}</CardTitle><CardDescription>{scope === 'mine' ? 'Review actions recorded for your account.' : 'Recent actions by staff accounts. Select an entry to inspect its full details.'}</CardDescription></div>
         </div>
       </CardHeader>
       <CardContent>
         {loading && <p role="status" className="py-8 text-center text-sm text-slate-500">Loading staff activity…</p>}
         {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-        {!loading && !error && items.length === 0 && <div className="py-10 text-center"><Activity className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm font-semibold text-slate-700">No activity recorded yet</p><p className="mt-1 text-xs text-slate-500">New staff actions will appear here.</p></div>}
-        {!loading && !error && items.length > 0 && <div className="divide-y divide-slate-100">
-          {items.map((item) => <button key={item.id} type="button" onClick={() => setSelected(item)} className="flex w-full flex-col gap-2 py-4 text-left transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:px-3">
+        {!loading && !error && items.length > 0 && <label className="mb-3 flex items-center gap-2 rounded-lg border border-slate-200 px-3"><Search className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" /><input aria-label="Filter activity" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter actions" className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none" /></label>}
+        {!loading && !error && visibleItems.length === 0 && <div className="py-10 text-center"><Activity className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm font-semibold text-slate-700">{items.length ? 'No matching activity' : 'No activity recorded yet'}</p><p className="mt-1 text-xs text-slate-500">{items.length ? 'Try another search.' : 'Recorded staff actions will appear here.'}</p></div>}
+        {!loading && !error && visibleItems.length > 0 && <div className="divide-y divide-slate-100">
+          {visibleItems.map((item) => <button key={item.id} type="button" onClick={() => setSelected(item)} className="flex w-full flex-col gap-2 py-4 text-left transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:px-3">
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-slate-900">{item.summary}</span><Badge variant={item.actorRole === 'ADMIN' ? 'info' : item.actorRole === 'MANAGER' ? 'default' : 'success'} size="sm">{item.actorRole}</Badge></span>
               <span className="mt-1 block text-xs text-slate-500">{item.actorName}{item.targetLabel ? ` · ${item.targetLabel}` : ''}</span>
@@ -57,6 +82,7 @@ export default function ActivityLogPanel() {
             <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-500"><Clock3 className="h-3.5 w-3.5" />{formatActivityTime(item.createdAt)}</span>
           </button>)}
         </div>}
+        {!loading && !error && hasMore && <div className="border-t border-slate-100 pt-3 text-center">{loadMoreError && <p role="alert" className="mb-2 text-sm text-rose-700">{loadMoreError}</p>}<Button type="button" variant="outline" size="sm" isLoading={loadingMore} disabled={loadingMore} onClick={loadNextActivityPage}>{loadingMore ? 'Loading…' : 'Next 25'}</Button></div>}
       </CardContent>
     </Card>
 

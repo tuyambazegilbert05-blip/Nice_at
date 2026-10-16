@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '../../../../../lib/auth'
 import { hasPermission } from '../../../../../lib/permissions/rbac'
 import { updateCustomFormResponseWindow } from '../../../../../lib/forms/form-service'
+import { recordActivity } from '../../../../../lib/activity/activity-service'
 
 const bodySchema = z.object({
   opensAt: z.string().datetime({ offset: true }),
@@ -18,6 +19,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ fo
     if (!parsed.success) return NextResponse.json({ success: false, error: 'Enter both response dates and times.' }, { status: 400 })
     const { formId } = await params
     const data = await updateCustomFormResponseWindow(formId, parsed.data.opensAt, parsed.data.closesAt, user.id)
+    await recordActivity({ actor: user, action: 'custom_form.response_window_updated', targetType: 'custom_form', targetId: data.id, targetLabel: data.title, summary: `Updated response window for “${data.title}”`, details: { opensAt: parsed.data.opensAt, closesAt: parsed.data.closesAt } })
     return NextResponse.json({ success: true, data })
   } catch (error) {
     if (error instanceof Error && error.message.includes('closing time')) {

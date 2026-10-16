@@ -37,13 +37,20 @@ export async function POST(request: NextRequest) {
       )
       const invite = invitation.rows[0]
       if (!invite) return false
+      const userId = `user_${randomUUID()}`
+      const fullName = name || invite.name || invite.email.split('@')[0]
       await client.query(
         `INSERT INTO users(id,name,email,password_hash,role,is_active)
          VALUES($1,$2,$3,$4,$5,true)`,
-        [`user_${randomUUID()}`, name || invite.name || invite.email.split('@')[0], invite.email, hashPassword(password), invite.role],
+        [userId, fullName, invite.email, hashPassword(password), invite.role],
       )
       await client.query('UPDATE user_invitations SET accepted_at=now() WHERE id=$1', [invite.id])
-      return true
+      await client.query(
+        `INSERT INTO activity_log(actor_id,actor_name,actor_role,action,target_type,target_id,target_label,summary,details)
+         VALUES($1,$2,$3,'account.invitation_accepted','staff_account',$1,$2,'Accepted a staff invitation and activated an account','{}'::jsonb)`,
+        [userId, fullName, invite.role],
+      )
+      return { id: userId, name: fullName, role: invite.role }
     })
     if (!outcome) return NextResponse.json({ success: false, error: 'This invitation is invalid, expired, or already used.' }, { status: 400 })
     return NextResponse.json({ success: true })

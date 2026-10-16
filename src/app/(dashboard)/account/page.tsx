@@ -2,12 +2,13 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { gsap } from '../../../motion/gsap'
-import { Camera, KeyRound, Mail, ShieldCheck, UserRound, X } from 'lucide-react'
+import { Camera, KeyRound, LoaderCircle, Mail, ShieldCheck, UserRound, X } from 'lucide-react'
 import { LottieIllustration } from '../../../lottie/shared/LottieIllustration'
 import { formatInitials } from '../../../utils/format'
 import type { AuthUser } from '../../../types/user'
 import { PasswordField } from '../../../components/ui/PasswordField'
 import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../../../lib/auth/password-policy'
+import ActivityLogPanel from '../../../components/settings/ActivityLogPanel'
 
 type FormState = { name: string; email: string; avatarUrl: string }
 
@@ -45,11 +46,14 @@ export default function AccountPage() {
   const saveProfile = async (event: FormEvent) => {
     event.preventDefault()
     setSaving(true); setMessage(''); setError('')
-    const response = await fetch('/api/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-    const data = await response.json()
-    if (!response.ok) setError(data.error ?? 'Could not update your profile.')
-    else { setUser(data.user); setMessage('Profile updated successfully.'); setForm((current) => ({ ...current, name: data.user.name, email: data.user.email, avatarUrl: data.user.avatarUrl ?? '' })) }
-    setSaving(false)
+    try {
+      const response = await fetch('/api/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const data = await response.json()
+      if (!response.ok) setError(data.error ?? 'Could not update your profile.')
+      else { setUser(data.user); setMessage('Profile updated successfully.'); setForm((current) => ({ ...current, name: data.user.name, email: data.user.email, avatarUrl: data.user.avatarUrl ?? '' })) }
+    } catch {
+      setError('Could not update your profile. Check your connection and try again.')
+    } finally { setSaving(false) }
   }
 
   const changePassword = async (event: FormEvent) => {
@@ -91,7 +95,7 @@ export default function AccountPage() {
             <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">Email address<div className="relative"><Mail className="absolute left-3 top-3 size-4 text-slate-400" /><input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3.5 font-normal outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100" /></div></label>
           </div>
           <label className="mt-5 flex flex-col gap-2 text-sm font-semibold text-slate-700">Profile image URL<span className="font-normal text-slate-500">Use an HTTPS link to a square image.</span><input type="url" value={form.avatarUrl} onChange={(event) => setForm({ ...form, avatarUrl: event.target.value })} placeholder="https://…" className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 font-normal outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100" /></label>
-          <div className="mt-7 flex items-center justify-between gap-4"><p role="status" className="text-sm text-emerald-600">{message}</p><button disabled={saving} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60">{saving ? 'Saving…' : 'Save changes'}</button></div>
+          <div className="mt-7 flex items-center justify-between gap-4"><p role="status" className="text-sm text-emerald-600">{message}</p><button disabled={saving} aria-busy={saving} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60">{saving && <LoaderCircle className="h-4 w-4 animate-spin" />}{saving ? 'Saving…' : 'Save changes'}</button></div>
         </form>
 
         <div className="flex flex-col gap-6">
@@ -102,11 +106,12 @@ export default function AccountPage() {
               <PasswordField label="Current password" autoComplete="current-password" value={passwords.currentPassword} onChange={(currentPassword) => setPasswords((current) => ({ ...current, currentPassword }))} placeholder="Enter current password" />
               <PasswordField label="New password" value={passwords.newPassword} onChange={(newPassword) => setPasswords((current) => ({ ...current, newPassword }))} placeholder="Create a strong password" showRequirements />
               <PasswordField label="Confirm new password" value={passwords.confirmPassword} onChange={(confirmPassword) => setPasswords((current) => ({ ...current, confirmPassword }))} confirmValue={passwords.newPassword} placeholder="Re-enter your password" />
-              <button disabled={changingPassword} className="mt-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 disabled:opacity-60">{changingPassword ? 'Updating…' : 'Update password'}</button>
+              <button disabled={changingPassword} aria-busy={changingPassword} className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 disabled:opacity-60">{changingPassword && <LoaderCircle className="h-4 w-4 animate-spin" />}{changingPassword ? 'Updating…' : 'Update password'}</button>
             </form>
           </div>
         </div>
       </div>
+      <section data-account-item aria-label="Your account activity"><ActivityLogPanel scope="mine" /></section>
       {error && <div role="alert" className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 flex items-start gap-3 rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm leading-relaxed text-rose-700 shadow-xl sm:bottom-5 sm:left-auto sm:right-5 sm:max-w-md"><X className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 break-words">{error}</span></div>}
     </div>
   )
