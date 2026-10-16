@@ -19,14 +19,14 @@ import { CustomFormOperations } from './CustomFormOperations'
 
 type OverviewSubmission = CustomFormSubmission & { emailStatus: FormEmailStatus }
 
-function hasResponse(value: unknown) {
+function hasResponse(value: unknown): boolean {
   if (value === undefined || value === null) return false
   if (typeof value === 'string') return value.trim().length > 0
   if (Array.isArray(value)) return value.some((item) => hasResponse(item))
   return true
 }
 
-function responseText(value: unknown) {
+function responseText(value: unknown): string {
   if (Array.isArray(value)) return value.map((item) => responseText(item)).filter(Boolean).join(', ')
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   return String(value ?? '')
