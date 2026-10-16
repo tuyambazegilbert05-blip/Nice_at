@@ -25,6 +25,6 @@ export function ScientificFormBackground({ children, className = '' }: {
         style={{ backgroundImage: 'url("/images/Atom-Illustration-background.webp")' }}
       />)}
     </div>
-    <div className="relative z-10 w-full">{children}</div>
+    <div className="relative z-10 flex min-h-screen w-full items-center justify-center">{children}</div>
   </main>
 }
