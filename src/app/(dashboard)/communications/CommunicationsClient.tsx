@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { LoaderCircle, Mail, Send } from 'lucide-react'
+import { LoaderCircle, Mail, Paperclip, Send, X } from 'lucide-react'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { EmailSuccessDialog } from '../../../components/ui/EmailSuccessDialog'
 import { RestrictedActionPanel } from '../../../components/ui/RestrictedAction'
@@ -15,6 +15,8 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
   const [extraEmails, setExtraEmails] = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [fileError, setFileError] = useState('')
   const [preview, setPreview] = useState('')
   const [loading, setLoading] = useState(canCommunicate)
   const [sending, setSending] = useState(false)
@@ -40,16 +42,17 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
     if (!canCommunicate) return
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch('/api/communications/preview', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subject, message }),
-        })
+        const formData = new FormData()
+        formData.set('subject', subject)
+        formData.set('message', message)
+        files.filter((file) => file.type.startsWith('image/')).forEach((file) => formData.append('images', file))
+        const response = await fetch('/api/communications/preview', { method: 'POST', body: formData })
         const result = await response.json()
         if (response.ok) setPreview(result.html)
-      } catch { /* Preview remains available when the connection returns. */ }
+      } catch { /* Keep the previous preview while offline. */ }
     }, 250)
     return () => clearTimeout(timer)
-  }, [canCommunicate, subject, message])
+  }, [canCommunicate, files, subject, message])
 
   const parsedCustomEmails = useMemo(() => extraEmails.split(/[\s,;]+/).map((email) => email.trim().toLowerCase()).filter(Boolean), [extraEmails])
   const finalRecipients = useMemo(() => [...new Set([...selected, ...parsedCustomEmails])], [selected, parsedCustomEmails])
@@ -66,6 +69,7 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
     setError('')
     if (!finalRecipients.length) return setError('Select or enter at least one recipient.')
     if (finalRecipients.length > 100) return setError('Send to no more than 100 recipients at a time.')
+    if (fileError) return setError(fileError)
     setSendConfirmOpen(true)
   }
 
@@ -73,10 +77,12 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
     setSendConfirmOpen(false)
     setSending(true)
     try {
-      const response = await fetch('/api/communications', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipients: finalRecipients, subject, message }),
-      })
+      const body = new FormData()
+      body.set('recipients', JSON.stringify(finalRecipients))
+      body.set('subject', subject)
+      body.set('message', message)
+      files.forEach((file) => body.append('attachments', file))
+      const response = await fetch('/api/communications', { method: 'POST', body })
       const result = await response.json()
       if (!response.ok && response.status !== 207) throw new Error(result.error || 'Email could not be sent.')
       if (result.sent > 0) {
@@ -87,6 +93,19 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Email could not be sent.')
     } finally { setSending(false) }
+  }
+
+  function selectFiles(fileList: FileList | null) {
+    const nextFiles = Array.from(fileList || [])
+    const allowedExtensions = /\.(jpe?g|png|gif|webp|pdf|txt|docx|pptx|xlsx)$/i
+    const totalBytes = nextFiles.reduce((total, file) => total + file.size, 0)
+    const issue = nextFiles.length > 5 ? 'Choose no more than 5 files.'
+      : nextFiles.some((file) => !allowedExtensions.test(file.name)) ? 'Use JPEG, PNG, GIF, WebP, PDF, TXT, DOCX, PPTX, or XLSX files.'
+      : nextFiles.some((file) => file.size > 5 * 1024 * 1024) ? 'Each file must be 5 MB or smaller.'
+      : totalBytes > 10 * 1024 * 1024 ? 'Files must total no more than 10 MB.' : ''
+    setFileError(issue)
+    setError('')
+    if (!issue) setFiles(nextFiles)
   }
 
   const team = recipients.filter((recipient) => recipient.category === 'Team')
@@ -117,6 +136,12 @@ export default function CommunicationsClient({ canCommunicate = true, role }: { 
         <p className="text-xs text-slate-500">Total recipients: {finalRecipients.length} / 100</p>
         <label className="block text-sm font-medium text-slate-700">Subject<input required minLength={3} maxLength={180} value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="A NiCE Club update" /></label>
         <label className="block text-sm font-medium text-slate-700">Message<textarea required minLength={2} maxLength={6000} rows={8} value={message} onChange={(event) => setMessage(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Write your update… Use a blank line to start a new paragraph." /></label>
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700 hover:border-sky-500 hover:bg-sky-50"><Paperclip className="h-4 w-4 text-sky-700" /><span>Add attachments or images</span><input type="file" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.docx,.pptx,.xlsx" onChange={(event) => selectFiles(event.target.files)} className="sr-only" /></label>
+          <p className="text-xs text-slate-500">Images appear in the email body and are also included as regular attachments. Other files are attachments only. Up to 5 files and 10 MB total.</p>
+          {fileError && <p role="alert" className="text-sm text-rose-700">{fileError}</p>}
+          {files.length > 0 && <ul className="space-y-1">{files.map((file, index) => <li key={`${file.name}-${file.lastModified}`} className="flex items-center justify-between gap-2 rounded-md bg-sky-50 px-2.5 py-1.5 text-xs text-slate-700"><span className="min-w-0 truncate">{file.type.startsWith('image/') ? 'Body image + attachment · ' : 'Attachment · '}{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span><button type="button" aria-label={`Remove ${file.name}`} onClick={() => { setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index)); setFileError('') }} className="rounded p-1 text-slate-500 hover:bg-white hover:text-rose-700"><X className="h-4 w-4" /></button></li>)}</ul>}
+        </div>
         {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
         <button disabled={sending || !finalRecipients.length} aria-busy={sending} className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-50">{sending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{sending ? 'Sending emails…' : 'Review and send'}</button>
       </section>
